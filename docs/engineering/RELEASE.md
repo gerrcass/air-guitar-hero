@@ -10,12 +10,12 @@ Live target: <https://gerrcass.github.io/air-guitar-hero/>
 | --- | --- | --- |
 | TypeScript strict | `npm run typecheck` | Pass |
 | Biome lint/format | `npm run lint` | Pass (warnings only) |
-| Unit tests | `npm run test` | 93 tests, 10 files |
+| Unit tests | `npm run test` | 94 tests, 10 files |
 | Content validation | `npm run validate:content` | 12 songs × 4 charts |
-| Browser journeys | `npm run test:e2e` | 26 Playwright tests |
+| Browser journeys | `npm run test:e2e` | 30 Playwright tests |
 | Accessibility scans | `e2e/axe.spec.ts` | 0 axe violations on menu, quickplay, career, settings, tutorial, results |
 | Performance | `e2e/performance.spec.ts` | median 59.9 fps, 16.7 ms frame time, no long tasks >100 ms |
-| Production build | `npm run build` | 388 kB JS / 116 kB gzip, 55 kB CSS / 11 kB gzip |
+| Production build | `npm run build` | 395 kB JS / 118 kB gzip, 56 kB CSS / 11.5 kB gzip |
 | Pages base path | `vite preview` at `/air-guitar-hero/` | Pass |
 | Screenshots | `npm run screenshots` | `docs/screenshots/*.png` |
 
