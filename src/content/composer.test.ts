@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DIFFICULTIES } from "../game/types";
 import { composeSong, getComposedSong, validateChart } from "./composer";
 import { SONGS, SONGS_BY_VENUE, VENUES } from "./songs";
+import type { SongDefinition } from "./types";
 
 describe("setlist", () => {
   it("ships twelve songs across three venues with four songs each", () => {
@@ -110,6 +111,36 @@ describe("composer", () => {
       const instruments = new Set(arrangement.events.map((event) => event.instrument));
       expect(instruments).toEqual(new Set(["lead", "rhythm", "bass", "pad", "drums"]));
     }
+  });
+
+  it("keeps Easy star phrases at a beginner-readable spacing", () => {
+    for (const song of SONGS) {
+      const easy = composeSong(song).charts.easy;
+      let previousStar: number | null = null;
+      for (const note of easy.notes) {
+        if (!note.star) {
+          previousStar = null;
+          continue;
+        }
+        if (previousStar !== null) {
+          expect(note.time - previousStar, `${song.title} Easy star gap`).toBeGreaterThanOrEqual(
+            0.15,
+          );
+        }
+        previousStar = note.time;
+      }
+    }
+  });
+
+  it("uses the authored motif so songs are not one rhythmic template", () => {
+    const base = SONGS[0];
+    if (!base) throw new Error("fixture");
+    const allOn: SongDefinition = { ...base, motif: [1, 1, 1, 1, 1, 1, 1, 1] };
+    const sparse: SongDefinition = { ...base, motif: [1, 0, 0, 0, 0, 0, 0, 0] };
+    const denseTimes = composeSong(allOn).charts.expert.notes.map((note) => note.time);
+    const sparseTimes = composeSong(sparse).charts.expert.notes.map((note) => note.time);
+    expect(sparseTimes.length).toBeLessThan(denseTimes.length);
+    expect(sparseTimes).not.toEqual(denseTimes.slice(0, sparseTimes.length));
   });
 
   it("keeps every chart's notes playable at the end of the run", () => {

@@ -47,6 +47,7 @@ function makeCallbacks() {
     onFretUp: vi.fn(),
     onStrum: vi.fn(),
     onStarPower: vi.fn(),
+    onPause: vi.fn(),
     onWhammy: vi.fn(),
   };
 }

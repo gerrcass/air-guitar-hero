@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, type Page } from "@playwright/test";
 
-const PORT = 4175;
+const PORT = 4318;
 const BASE = `http://localhost:${PORT}/air-guitar-hero/`;
 const OUT = "docs/screenshots";
 
@@ -60,7 +60,7 @@ async function main(): Promise<void> {
     // Main menu from a save with progress.
     await goto(page, "#/play/career/neon-throttle/hard");
     await startRun(page);
-    await page.evaluate(() => window.__AGH_TEST__?.finishRun?.({ passed: true, scoreRatio: 0.95 }));
+    await page.evaluate(() => window.__AGH_TEST__?.completeRun?.());
     await page.waitForURL(/#\/results/);
     await page.waitForTimeout(500);
     await screenshot(page, "results");
@@ -77,9 +77,6 @@ async function main(): Promise<void> {
     await page.evaluate(() => window.__AGH_TEST__?.autoplay?.(60));
     await page.waitForTimeout(20_000);
     await screenshot(page, "gameplay");
-    await page.evaluate(() => window.__AGH_TEST__?.finishRun?.({ passed: true, scoreRatio: 0.94 }));
-    await page.waitForURL(/#\/results/);
-    await page.waitForTimeout(400);
 
     // Two-player evidence with both players alive and scoring.
     await goto(page, "#/faceoff");

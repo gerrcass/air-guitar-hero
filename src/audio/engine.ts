@@ -568,6 +568,14 @@ export class AudioEngine {
   playUi(): void {
     this.blip(1180, 0.035, "sine", 0.05);
   }
+
+  /** Calibration click: positive offset delays the click relative to the visual pulse. */
+  playCalibrationClick(offsetMs: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.sfxBus || ctx.state !== "running") return;
+    const delay = Math.max(0, offsetMs) / 1000;
+    this.scheduleClick(ctx.currentTime + 0.02 + delay, true);
+  }
 }
 
 export const audioEngine = new AudioEngine();

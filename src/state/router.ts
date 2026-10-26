@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { SONG_BY_ID } from "../content/songs";
 import type { Difficulty } from "../game/types";
 import type { GameMode } from "./save";
 
@@ -30,6 +31,14 @@ function parseDifficulty(value: string | null): Difficulty {
 }
 
 export function parseRoute(hash: string): Route {
+  try {
+    return parseRouteUnsafe(hash);
+  } catch {
+    return { name: "menu" };
+  }
+}
+
+function parseRouteUnsafe(hash: string): Route {
   const raw = hash.replace(/^#\/?/, "");
   const [pathPart = "", queryPart = ""] = raw.split("?");
   const segments = pathPart.split("/").filter(Boolean).map(decodeURIComponent);
@@ -50,7 +59,7 @@ export function parseRoute(hash: string): Route {
     case "play": {
       const mode = segments[1] ?? "";
       const songId = segments[2] ?? "";
-      if (!PLAY_MODES.has(mode) || !songId) return { name: "menu" };
+      if (!PLAY_MODES.has(mode) || !SONG_BY_ID.has(songId)) return { name: "menu" };
       const speedValue = Number(query.get("speed"));
       const speed = Number.isFinite(speedValue) && speedValue > 0 ? speedValue : undefined;
       const sectionId = query.get("section") ?? undefined;

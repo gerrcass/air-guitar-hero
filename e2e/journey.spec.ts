@@ -31,10 +31,19 @@ test.describe("quickplay journey", () => {
     await page.keyboard.press("Escape");
     const dialog = page.getByRole("dialog", { name: "Run paused" });
     await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Resume" })).toBeFocused();
+    for (let index = 0; index < 6; index += 1) await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest("[role=dialog]"))),
+    ).toBe(true);
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
 
     await page.waitForTimeout(500);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeHidden();
     await page.keyboard.press("Escape");
     await expect(dialog).toBeVisible();
     await page.getByRole("button", { name: "End run & see results" }).click();

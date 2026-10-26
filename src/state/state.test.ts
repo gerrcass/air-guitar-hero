@@ -89,6 +89,7 @@ describe("save", () => {
       sfxVolume: -3,
       crowdVolume: 0.33,
       noFail: "yes",
+      hopoRelief: false,
       leftyFlip: true,
     });
     expect(settings.noteSpeed).toBe(5);
@@ -97,6 +98,7 @@ describe("save", () => {
     expect(settings.sfxVolume).toBe(0);
     expect(settings.crowdVolume).toBeCloseTo(0.33);
     expect(settings.noFail).toBe(false);
+    expect(settings.hopoRelief).toBe(false);
     expect(settings.leftyFlip).toBe(true);
   });
 
@@ -123,8 +125,8 @@ describe("save", () => {
   });
 
   it("applies calibration only to input time and maps speed to approach time", () => {
-    expect(calibratedTime(10, 50)).toBeCloseTo(10.05);
-    expect(calibratedTime(10, -40)).toBeCloseTo(9.96);
+    expect(calibratedTime(10, 50)).toBeCloseTo(9.95);
+    expect(calibratedTime(10, -40)).toBeCloseTo(10.04);
     expect(approachSeconds(1)).toBeGreaterThan(approachSeconds(5));
   });
 });

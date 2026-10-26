@@ -18,6 +18,9 @@ export const STAR_POWER_MIN_ACTIVATION = 0.25;
 export const STAR_POWER_BEATS = 32;
 export const STAR_POWER_MULTIPLIER = 2;
 
+/** A short window after a fretted HOPO in which a strum is forgiven. */
+export const HOPO_STRUM_GRACE = 0.12;
+
 export const START_ROCK = 0.64;
 export const ROCK_HIT_GAIN: Readonly<Record<"perfect" | "great" | "good", number>> = {
   perfect: 0.021,

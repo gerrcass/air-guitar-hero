@@ -28,6 +28,16 @@ function moveFocus(direction: number): void {
   target?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
+function cycleSelect(direction: number): boolean {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLSelectElement) || active.options.length === 0) return false;
+  const next = (active.selectedIndex + direction + active.options.length) % active.options.length;
+  active.selectedIndex = next;
+  active.dispatchEvent(new Event("input", { bubbles: true }));
+  active.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
 function adjustRange(direction: number): boolean {
   const active = document.activeElement;
   if (!(active instanceof HTMLInputElement) || active.type !== "range") return false;
@@ -58,6 +68,10 @@ export function useGamepadMenu(enabled: boolean): void {
       raf = requestAnimationFrame(poll);
       const now = performance.now();
       if (now - lastMove < 110) return;
+      if (document.documentElement.dataset.gameplayActive === "1") {
+        previous = [];
+        return;
+      }
       const pad = Array.from(navigator.getGamepads()).find(
         (candidate): candidate is Gamepad => candidate !== null,
       );
@@ -77,14 +91,18 @@ export function useGamepadMenu(enabled: boolean): void {
         moveFocus(1);
         lastMove = now;
       } else if (left) {
-        if (!adjustRange(-1)) moveFocus(-1);
+        if (!adjustRange(-1) && !cycleSelect(-1)) moveFocus(-1);
         lastMove = now;
       } else if (right) {
-        if (!adjustRange(1)) moveFocus(1);
+        if (!adjustRange(1) && !cycleSelect(1)) moveFocus(1);
         lastMove = now;
       } else if (select) {
         const active = document.activeElement;
-        if (active instanceof HTMLElement) active.click();
+        if (cycleSelect(1)) {
+          // The select owns the choice; A advances it.
+        } else if (active instanceof HTMLElement) {
+          active.click();
+        }
         lastMove = now;
       }
       previous = pressed;

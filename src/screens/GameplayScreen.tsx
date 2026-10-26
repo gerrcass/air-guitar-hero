@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngineError, audioEngine } from "../audio/engine";
 import { AlbumArt } from "../components/AlbumArt";
 import { GameCanvas } from "../components/GameCanvas";
+import { GuitarArt } from "../components/GuitarArt";
 import { RunHud } from "../components/RunHud";
+import { useFocusTrap } from "../components/useFocusTrap";
 import { getComposedSong } from "../content/composer";
 import { isPracticeLoopDue, sliceChartForPractice } from "../content/practice";
 import { songById } from "../content/songs";
@@ -11,7 +13,8 @@ import type { Chart, GameEvent, GameSnapshot } from "../game/types";
 import { attachGamepads } from "../input/gamepad";
 import { attachKeyboard, type InputPlayer } from "../input/keyboard";
 import { RenderEffects } from "../render/effects";
-import { starsForScore } from "../state/career";
+import { isSongUnlocked, starsForScore } from "../state/career";
+import { guitarById } from "../state/cosmetics";
 import { navigate, type Route } from "../state/router";
 import { setLastRun } from "../state/run";
 import { approachSeconds, calibratedTime } from "../state/settings";
@@ -36,12 +39,19 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
   const song = useMemo(() => songById(route.songId), [route.songId]);
   const baseChart = composed.charts[route.difficulty];
   const practice = route.mode === "practice";
+  const modeLabel =
+    route.mode === "career" ? "Career" : route.mode === "practice" ? "Practice" : "Quickplay";
+  const equippedGuitar = guitarById(save.equippedGuitar);
+  const careerLocked =
+    route.mode === "career" && !isSongUnlocked(save, route.difficulty, route.songId);
   const requestedSection = practice
     ? (baseChart.sections.find((section) => section.id === route.sectionId) ?? null)
     : null;
   const practiceSlice = useMemo(
     () =>
-      practice && requestedSection ? sliceChartForPractice(baseChart, requestedSection) : null,
+      practice && requestedSection
+        ? sliceChartForPractice(baseChart, requestedSection, (8 * 60) / baseChart.bpm)
+        : null,
     [practice, baseChart, requestedSection],
   );
   const chart: Chart = practiceSlice?.chart ?? baseChart;
@@ -62,9 +72,10 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       new GameSession(chart, {
         difficulty: route.difficulty,
         noFail: practice || settings.noFail,
+        hopoEnabled: settings.hopoRelief,
         startTime: sessionStart,
       }),
-    [chart, route.difficulty, practice, settings.noFail, sessionStart],
+    [chart, route.difficulty, practice, settings.noFail, settings.hopoRelief, sessionStart],
   );
 
   const initialSession = useMemo(() => makeSession(), [makeSession]);
@@ -90,6 +101,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
   const settingsRef = useRef(settings);
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const pauseResumeRef = useRef<HTMLButtonElement>(null);
+  const pauseDialogRef = useRef<HTMLDivElement>(null);
   const gameRegionRef = useRef<HTMLDivElement>(null);
   const liveTickRef = useRef(0);
   const lastSfxRef = useRef(0);
@@ -107,11 +119,23 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
   useEffect(() => {
     if (paused) pauseResumeRef.current?.focus();
   }, [paused]);
-
+  useFocusTrap(pauseDialogRef, paused);
+  useEffect(() => {
+    const active = started && !paused;
+    document.documentElement.dataset.gameplayActive = active ? "1" : "0";
+    return () => {
+      delete document.documentElement.dataset.gameplayActive;
+    };
+  }, [started, paused]);
   const controllerTime = useCallback((): number => {
     const raw = audioEngine.now();
     return practice ? raw - startSongTime : raw;
   }, [practice, startSongTime]);
+
+  const judgeTime = useCallback(
+    (): number => calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
+    [controllerTime],
+  );
 
   const finalizeRun = useCallback(
     (
@@ -142,8 +166,11 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       const hits =
         snapshot.judgeCounts.perfect + snapshot.judgeCounts.great + snapshot.judgeCounts.good;
       const stars = starsForScore(score, chart.parScore, passed);
+      const careerAllowed =
+        route.mode !== "career" ||
+        isSongUnlocked(saveStore.getSnapshot(), route.difficulty, song.id);
       const recorded =
-        practice || route.mode === "faceoff"
+        practice || route.mode === "faceoff" || !careerAllowed
           ? null
           : saveStore.recordRun({
               mode: route.mode,
@@ -281,7 +308,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
     pausedRef.current = true;
     setPaused(true);
     const session = sessionRef.current;
-    const time = controllerTime();
+    const time = judgeTime();
     for (let lane = 0; lane < 5; lane += 1) session.releaseFret(lane as 0 | 1 | 2 | 3 | 4, time);
     session.setWhammy(false);
     try {
@@ -290,7 +317,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
     } catch {
       setLiveText("Pause requested. Audio may still be running.");
     }
-  }, [controllerTime]);
+  }, [judgeTime]);
 
   const resume = useCallback(async (): Promise<void> => {
     if (!pausedRef.current) return;
@@ -313,12 +340,23 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
     else void pause();
   }, [pause, resume]);
 
+  useEffect(() => {
+    if (!paused) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      void resume();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [paused, resume]);
+
   const activateStarPower = useCallback((): void => {
     if (pausedRef.current || finalizedRef.current) return;
-    const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+    const time = judgeTime();
     const events = sessionRef.current.activateStarPower(time);
     processEvents(events);
-  }, [controllerTime, processEvents]);
+  }, [judgeTime, processEvents]);
 
   const quit = useCallback((): void => {
     audioEngine.stopRun();
@@ -330,25 +368,22 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
   }, [finalizeRun]);
 
   useEffect(() => {
-    if (!started) return;
+    if (!started || paused) return;
     const callbacks = {
       onFretDown: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         if (pausedRef.current || finalizedRef.current || player !== 1) return;
         if (audioEngine.countInRemaining() > 0.01) return;
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         processEvents(sessionRef.current.pressFret(lane, time));
       },
       onFretUp: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         if (player !== 1) return;
-        sessionRef.current.releaseFret(
-          lane,
-          calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
-        );
+        sessionRef.current.releaseFret(lane, judgeTime());
       },
       onStrum: (player: InputPlayer): void => {
         if (pausedRef.current || finalizedRef.current || player !== 1) return;
         if (audioEngine.countInRemaining() > 0.01) return;
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         processEvents(sessionRef.current.strum(time));
       },
       onStarPower: (player: InputPlayer): void => {
@@ -368,6 +403,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
         onFretUp: (player, lane) => callbacks.onFretUp(player, lane),
         onStrum: (player) => callbacks.onStrum(player),
         onStarPower: (player) => callbacks.onStarPower(player),
+        onPause: callbacks.onPause,
         onWhammy: (player, down) => callbacks.onWhammy(player, down),
       },
       1,
@@ -376,7 +412,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       detachKeyboard();
       gamepads.detach();
     };
-  }, [started, activateStarPower, controllerTime, processEvents, togglePause]);
+  }, [started, paused, activateStarPower, judgeTime, processEvents, togglePause]);
 
   useEffect(() => {
     if (!started) return;
@@ -422,7 +458,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       if (pausedRef.current || finalizedRef.current) return;
       const session = sessionRef.current;
       if (audioEngine.countInRemaining() <= 0.001) {
-        const time = controllerTime();
+        const time = judgeTime();
         if (practice && loopEnabledRef.current && isPracticeLoopDue(time, chart.duration)) {
           restartLoop();
           return;
@@ -447,7 +483,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
     started,
     autoplayHit,
     chart.duration,
-    controllerTime,
+    judgeTime,
     finalizeRun,
     practice,
     processEvents,
@@ -559,6 +595,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
             song={song}
             difficulty={route.difficulty}
             {...(sectionLabel ? { sectionLabel } : {})}
+            duration={chart.duration}
             paused={paused}
             onPause={togglePause}
             onStarPower={activateStarPower}
@@ -590,7 +627,13 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
             {liveText}
           </p>
           {paused && (
-            <div className="pause-overlay" role="dialog" aria-modal="true" aria-label="Run paused">
+            <div
+              className="pause-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Run paused"
+              ref={pauseDialogRef}
+            >
               <div className="pause-panel">
                 <p className="eyebrow">Paused</p>
                 <h2>{song.title}</h2>
@@ -619,7 +662,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
                     End run &amp; see results
                   </button>
                   <button type="button" className="btn btn-ghost" onClick={quit}>
-                    Quit to {route.mode === "career" ? "career" : "quickplay"}
+                    Quit to {modeLabel.toLowerCase()}
                   </button>
                 </div>
                 {practice && (
@@ -663,10 +706,41 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
     );
   }
 
+  if (careerLocked) {
+    return (
+      <div className="gameplay-gate" data-gameplay="1">
+        <a className="gate-back" href="#/career">
+          ← Career
+        </a>
+        <div className="gate-layout">
+          <div className="gate-art">
+            <AlbumArt song={song} />
+          </div>
+          <div className="gate-panel">
+            <p className="eyebrow">Locked career song</p>
+            <h1>{song.title}</h1>
+            <p className="gate-copy">
+              This song is locked on {route.difficulty}. Clear the songs before it in Career, or
+              switch difficulty. Quickplay always has the entire setlist open.
+            </p>
+            <div className="gate-actions">
+              <a className="btn btn-primary" href="#/career">
+                Back to the career map
+              </a>
+              <a className="btn btn-ghost" href="#/quickplay">
+                Open quickplay
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gameplay-gate" data-gameplay="1">
       <a className="gate-back" href={hubFor(route.mode)}>
-        ← {route.mode === "career" ? "Career" : "Quickplay"}
+        ← {modeLabel}
       </a>
       <div className="gate-layout">
         <div className="gate-art">
@@ -689,6 +763,12 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
               ? "No fail, no saved scores. Loop restarts audio and chart together at the section boundary."
               : "Hold the five frets. Strum on the line. Star phrases fill the meter; Q or Enter spends it."}
           </p>
+          <div className="gate-guitar">
+            <GuitarArt guitar={equippedGuitar} />
+            <span>
+              Equipped: <strong>{equippedGuitar.name}</strong>
+            </span>
+          </div>
           <div className="gate-controls">
             <span>
               <kbd>A S D F G</kbd> frets

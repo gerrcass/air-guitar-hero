@@ -5,6 +5,7 @@ export interface PadFrame {
   readonly frets: readonly [boolean, boolean, boolean, boolean, boolean];
   readonly strum: boolean;
   readonly star: boolean;
+  readonly pause: boolean;
   readonly whammy: boolean;
 }
 
@@ -13,6 +14,7 @@ export interface PadEdges {
   readonly fretUp: readonly Lane[];
   readonly strum: boolean;
   readonly star: boolean;
+  readonly pause: boolean;
   readonly whammyChanged: boolean;
   readonly whammy: boolean;
 }
@@ -20,6 +22,7 @@ export interface PadEdges {
 const FRET_BUTTONS = [0, 1, 2, 3, 5] as const;
 const STRUM_BUTTONS = [4, 6, 7] as const;
 const STAR_BUTTON = 9;
+const PAUSE_BUTTON = 8;
 const WHAMMY_BUTTON = 10;
 
 /** Map a standard-mapping gamepad into the game's five-fret vocabulary. */
@@ -38,6 +41,7 @@ export function decodeStandardPad(
     ],
     strum: STRUM_BUTTONS.some(pressed),
     star: pressed(STAR_BUTTON),
+    pause: pressed(PAUSE_BUTTON),
     whammy: pressed(WHAMMY_BUTTON),
   };
 }
@@ -61,6 +65,7 @@ export class PadEdgeTracker {
       fretUp,
       strum: frame.strum && !(previous?.strum ?? false),
       star: frame.star && !(previous?.star ?? false),
+      pause: frame.pause && !(previous?.pause ?? false),
       whammyChanged: frame.whammy !== (previous?.whammy ?? false),
       whammy: frame.whammy,
     };
@@ -82,6 +87,7 @@ export class PadEdgeTracker {
         fretUp: [],
         strum: false,
         star: false,
+        pause: false,
         whammyChanged: false,
         whammy: false,
       };
@@ -95,6 +101,7 @@ export class PadEdgeTracker {
       fretUp,
       strum: false,
       star: false,
+      pause: false,
       whammyChanged: previous.whammy,
       whammy: false,
     };
@@ -133,6 +140,7 @@ export interface GamepadCallbacks {
   readonly onFretUp: (player: InputPlayer, lane: Lane) => void;
   readonly onStrum: (player: InputPlayer) => void;
   readonly onStarPower: (player: InputPlayer) => void;
+  readonly onPause: () => void;
   readonly onWhammy: (player: InputPlayer, down: boolean) => void;
 }
 
@@ -185,6 +193,7 @@ export function attachGamepads(callbacks: GamepadCallbacks, players: 1 | 2): Gam
       for (const lane of edges.fretUp) callbacks.onFretUp(assigned, lane);
       if (edges.strum) callbacks.onStrum(assigned);
       if (edges.star) callbacks.onStarPower(assigned);
+      if (edges.pause) callbacks.onPause();
       if (edges.whammyChanged) callbacks.onWhammy(assigned, edges.whammy);
     }
   };

@@ -279,6 +279,47 @@ describe("HOPO", () => {
     expect(s.snapshot().noteStates[1]?.status).toBe("missed");
   });
 
+  it("forgives a strum immediately after a fretted HOPO", () => {
+    const s = session([note(0, 5, [0]), note(1, 5.3, [1], { hopo: true })]);
+    hit(s, 5);
+    s.releaseFret(0, 5.05);
+    s.pressFret(1, 5.3);
+    const strumEvents = s.strum(5.31);
+    expect(strumEvents).not.toContainEqual(expect.objectContaining({ type: "overstrum" }));
+    expect(s.snapshot().streak).toBe(2);
+    expect(s.snapshot().rock).toBeGreaterThan(0.6);
+  });
+
+  it("requires a strum for HOPO notes when HOPO relief is disabled", () => {
+    const s = session([note(0, 5, [0]), note(1, 5.3, [1], { hopo: true })], {
+      hopoEnabled: false,
+    });
+    hit(s, 5);
+    s.releaseFret(0, 5.05);
+    s.pressFret(1, 5.3);
+    expect(s.snapshot().noteStates[1]?.status).toBe("pending");
+    const events = s.strum(5.31);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "judgement", noteId: 1, judgement: "perfect" }),
+    );
+  });
+
+  it("can strum every note on a HOPO-heavy chart without overstrums", () => {
+    const notes = Array.from({ length: 24 }, (_, index) =>
+      note(index, 2 + index * 0.5, [(index % 5) as Lane], { hopo: index % 2 === 1 }),
+    );
+    const s = session(notes);
+    const events = [];
+    for (const entry of notes) {
+      for (const lane of entry.lanes) events.push(...s.pressFret(lane, entry.time));
+      events.push(...s.strum(entry.time));
+      for (const lane of entry.lanes) s.releaseFret(lane, entry.time + 0.02);
+    }
+    expect(events.some((event) => event.type === "overstrum")).toBe(false);
+    expect(s.snapshot().judgeCounts.miss).toBe(0);
+    expect(s.snapshot().streak).toBe(24);
+  });
+
   it("times out an unfretted HOPO as a miss", () => {
     const s = session([note(0, 5, [0]), note(1, 5.3, [1], { hopo: true })]);
     hit(s, 5);

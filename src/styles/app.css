@@ -165,6 +165,9 @@ ol {
 
 .skip-link {
   position: fixed;
+  font: inherit;
+  border: 0;
+  cursor: pointer;
   top: 12px;
   left: 12px;
   z-index: 200;
@@ -3180,6 +3183,23 @@ button.song-card:hover .album-art {
   margin: 20px 0 8px;
   font-size: 0.72rem;
   color: var(--quiet);
+}
+
+.gate-guitar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 0.72rem;
+  color: var(--quiet);
+}
+
+.gate-guitar .guitar-art {
+  width: 150px;
+}
+
+.gate-guitar strong {
+  color: var(--amber);
 }
 
 .gate-actions {

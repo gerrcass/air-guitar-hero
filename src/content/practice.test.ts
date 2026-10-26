@@ -26,6 +26,19 @@ describe("practice slices", () => {
     expect(slice.chart.sections.some((candidate) => candidate.name === section.name)).toBe(true);
   });
 
+  it("aligns the pre-roll to the song's bar grid and clears star flags before the section", () => {
+    const composed = getComposedSong("chrome-cathedral");
+    const chart = composed.charts.hard;
+    const section = chart.sections.find((candidate) => candidate.name === "Chorus 1");
+    if (!section) throw new Error("fixture");
+    const beat = 60 / chart.bpm;
+    const preRoll = 8 * beat;
+    const slice = sliceChartForPractice(chart, section, preRoll);
+    expect(slice.startSongTime / beat).toBeCloseTo(Math.round(slice.startSongTime / beat), 5);
+    const beforeSection = slice.chart.notes.filter((note) => note.time < preRoll - 0.001);
+    expect(beforeSection.every((note) => !note.star)).toBe(true);
+  });
+
   it("handles the first section without going negative", () => {
     const composed = getComposedSong("gutter-halo");
     const chart = composed.charts.easy;

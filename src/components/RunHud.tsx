@@ -7,6 +7,7 @@ interface RunHudProps {
   readonly song: SongDefinition;
   readonly difficulty: string;
   readonly sectionLabel?: string;
+  readonly duration?: number;
   readonly playerLabel?: string;
   readonly paused: boolean;
   readonly onPause: () => void;
@@ -23,6 +24,7 @@ export function RunHud({
   song,
   difficulty,
   sectionLabel,
+  duration,
   playerLabel,
   paused,
   onPause,
@@ -30,7 +32,9 @@ export function RunHud({
   compact = false,
 }: RunHudProps): React.JSX.Element {
   const progress =
-    snapshot.time < 0 ? 0 : Math.min(1, snapshot.time / Math.max(1, song.targetDuration));
+    snapshot.time < 0
+      ? 0
+      : Math.min(1, snapshot.time / Math.max(1, duration ?? song.targetDuration));
   const starReady = snapshot.starPower >= 0.25 && !snapshot.starPowerActive;
   return (
     <section

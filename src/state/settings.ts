@@ -8,6 +8,8 @@ export interface Settings {
   readonly staticHighway: boolean;
   readonly cameraShake: boolean;
   readonly noFail: boolean;
+  /** When false, flagged HOPO notes require a strum. */
+  readonly hopoRelief: boolean;
   /** −200…+200 ms added to input timestamps. */
   readonly calibrationMs: number;
   readonly musicVolume: number;
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   staticHighway: false,
   cameraShake: true,
   noFail: false,
+  hopoRelief: true,
   calibrationMs: 0,
   musicVolume: 0.75,
   sfxVolume: 0.8,
@@ -55,6 +58,7 @@ export function mergeSettings(raw: unknown): Settings {
     staticHighway: boolean(source.staticHighway, DEFAULT_SETTINGS.staticHighway),
     cameraShake: boolean(source.cameraShake, DEFAULT_SETTINGS.cameraShake),
     noFail: boolean(source.noFail, DEFAULT_SETTINGS.noFail),
+    hopoRelief: boolean(source.hopoRelief, DEFAULT_SETTINGS.hopoRelief),
     calibrationMs: Math.round(
       clamp(finite(source.calibrationMs, DEFAULT_SETTINGS.calibrationMs), -200, 200),
     ),
@@ -64,20 +68,18 @@ export function mergeSettings(raw: unknown): Settings {
   };
 }
 
-/** Apply calibration to an audio timestamp without touching chart times. */
+/**
+ * Apply calibration to an input timestamp without touching chart times. Positive means the
+ * player's hits feel late, so the input is judged earlier by that offset.
+ */
 export function calibratedTime(audioSeconds: number, calibrationMs: number): number {
-  return audioSeconds + calibrationMs / 1000;
+  return audioSeconds - calibrationMs / 1000;
 }
 
 /** Seconds a note is visible on the highway for a given 1–5 speed setting. */
 export function approachSeconds(noteSpeed: number): number {
   const clamped = clamp(noteSpeed, 1, 5);
   return 2.6 - (clamped - 1) * 0.32;
-}
-
-/** Seconds per chart unit at a practice speed. */
-export function practiceTimeScale(speed: number): number {
-  return clamp(speed, 0.5, 1);
 }
 
 export function noteSpeedLabel(noteSpeed: number): string {

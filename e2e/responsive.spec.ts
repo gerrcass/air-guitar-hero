@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { gotoRoute } from "../e2e/helpers";
+import { gotoRoute, startRunFromGate } from "../e2e/helpers";
 
 const VIEWPORTS = [
   { width: 1280, height: 720 },
@@ -41,6 +41,29 @@ test.describe("responsive layout", () => {
       expect(p1.height).toBeGreaterThan(60);
     }
     await page.getByRole("button", { name: "Quit" }).click();
+  });
+
+  test("results and gameplay keep their layout at every supported size", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await gotoRoute(page, "#/play/quickplay/neon-throttle/easy");
+    await startRunFromGate(page);
+    const hud = await page.locator(".run-hud").boundingBox();
+    expect(hud).not.toBeNull();
+    if (hud) {
+      expect(hud.x).toBeGreaterThanOrEqual(0);
+      expect(hud.y).toBeGreaterThanOrEqual(0);
+      expect(hud.width).toBeLessThanOrEqual(1280);
+    }
+    await page.evaluate(() => window.__AGH_TEST__?.completeRun?.());
+    await page.waitForURL(/#\/results/);
+    for (const viewport of VIEWPORTS) {
+      await page.setViewportSize(viewport);
+      await page.waitForTimeout(80);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+      expect(overflow, `results at ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(1);
+    }
   });
 
   test("mobile menus explain the keyboard/gamepad requirement", async ({ page }) => {

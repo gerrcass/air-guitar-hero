@@ -33,7 +33,7 @@ test.describe("tutorial", () => {
     const cards = page.locator(".lesson-card");
     await cards.nth(1).getByRole("button", { name: "Start lesson" }).click();
     await expect(page.locator(".tutorial-top h1")).toContainText("Chords");
-    await page.getByRole("button", { name: "Skip" }).click();
+    await page.getByRole("button", { name: "Skip", exact: true }).click();
     await expect(page.locator(".tutorial-top h1")).toContainText("Sustains");
     await page.getByRole("button", { name: "← Lessons" }).click();
     await expect(page.locator(".tutorial-progress__value")).toContainText("0/5");

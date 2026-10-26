@@ -2,6 +2,7 @@ import {
   BASE_GEM_POINTS,
   GOOD_WINDOW,
   GREAT_WINDOW,
+  HOPO_STRUM_GRACE,
   JUDGEMENT_WEIGHT,
   multiplierForStreak,
   PERFECT_WINDOW,
@@ -68,6 +69,7 @@ export class GameSession {
   private states: NoteState[];
   private held: boolean[] = Array.from({ length: LANE_COUNT }, () => false);
   private whammy = false;
+  private lastHopoHitTime = Number.NEGATIVE_INFINITY;
   private nextTick = new Map<number, number>();
 
   private currentTime: number;
@@ -211,6 +213,7 @@ export class GameSession {
   }
 
   private earliestHopo(time: number): number | null {
+    if (this.options.hopoEnabled === false) return null;
     let best: number | null = null;
     let bestDelta = Number.POSITIVE_INFINITY;
     for (const note of this.chart.notes) {
@@ -296,6 +299,7 @@ export class GameSession {
     if (note.duration > 0) {
       this.nextTick.set(noteId, note.time + this.tickSeconds);
     }
+    if (hopoHit) this.lastHopoHitTime = time;
     events.push({
       type: "judgement",
       time,
@@ -434,6 +438,8 @@ export class GameSession {
       return this.registerJudgement(candidate, this.judgeFor(candidate, time), time);
     }
     if (this.isHoldingSustain(time)) return [];
+    // A player who frets a HOPO and then strums in the same motion must not be punished.
+    if (time - this.lastHopoHitTime <= HOPO_STRUM_GRACE) return [];
     const events: GameEvent[] = [{ type: "overstrum", time }];
     this.streak = 0;
     this.rock = clamp(this.rock - ROCK_OVERSTRUM_DRAIN, 0, 1);

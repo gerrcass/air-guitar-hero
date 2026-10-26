@@ -21,7 +21,7 @@ synthesized soundtrack and no server.
 - **Four real charts per song:** Easy (3 lanes, no chords), Medium (4 lanes, dyads), and
   Hard/Expert (5 lanes, full chords, sustains, HOPOs).
 - **Career:** three venues with three songs and an encore each, separate progress on every
-  difficulty, one-to-five-star ratings, and six unlockable guitar finishes.
+  difficulty, one-to-five-star ratings, and six guitar finishes (one starter, five unlocked by career stars).
 - **Quickplay:** every song and difficulty from the first visit, with remembered selections and
   best score, stars, accuracy, and streak per song/difficulty.
 - **Practice:** real chart sections, 50–100% speed, looping, no fail, and no writes to career or
@@ -131,3 +131,11 @@ project and a love letter to the five-fret genre.
 | Face-off | Settings |
 | --- | --- |
 | ![Two-player split-screen face-off](docs/screenshots/faceoff.png) | ![Settings and calibration](docs/screenshots/settings.png) |
+
+| Face-off result | Tutorial |
+| --- | --- |
+| ![The winner and both accuracies after a face-off](docs/screenshots/faceoff-results.png) | ![The five tutorial lessons](docs/screenshots/tutorial.png) |
+
+| Main menu | Mobile menu |
+| --- | --- |
+| ![The late-night arena main menu](docs/screenshots/menu.png) | ![Responsive mobile menu with the keyboard/gamepad notice](docs/screenshots/mobile-menu.png) |

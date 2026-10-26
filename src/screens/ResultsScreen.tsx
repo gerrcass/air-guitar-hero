@@ -73,7 +73,9 @@ export function ResultsScreen(): React.JSX.Element {
         ? "Career progress and best score saved."
         : "Failed career run — no career progress saved."
       : run.mode === "quickplay"
-        ? "Best score saved for this song and difficulty."
+        ? run.passed
+          ? "Best score saved for this song and difficulty."
+          : "Failed run — no best score saved."
         : "Practice rep — saves untouched.";
 
   return (

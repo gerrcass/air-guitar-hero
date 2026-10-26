@@ -4,8 +4,10 @@ import { AlbumArt } from "../components/AlbumArt";
 import { DifficultyPicker, difficultyLabel } from "../components/DifficultyPicker";
 import { GameCanvas } from "../components/GameCanvas";
 import { Meter } from "../components/Meter";
+import { useFocusTrap } from "../components/useFocusTrap";
 import { getComposedSong } from "../content/composer";
 import { SONGS, songById } from "../content/songs";
+import { decideFaceOffWinner } from "../game/faceoff";
 import { GameSession } from "../game/session";
 import type { GameEvent, GameSnapshot } from "../game/types";
 import { attachGamepads } from "../input/gamepad";
@@ -119,6 +121,8 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const resumeRef = useRef<HTMLButtonElement>(null);
   const rematchRef = useRef<HTMLButtonElement>(null);
+  const pauseDialogRef = useRef<HTMLDivElement>(null);
+  const resultDialogRef = useRef<HTMLDivElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -132,17 +136,31 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
   useEffect(() => {
     if (paused) resumeRef.current?.focus();
   }, [paused]);
+  useFocusTrap(pauseDialogRef, paused);
+  useFocusTrap(resultDialogRef, phase === "done");
+  useEffect(() => {
+    const active = phase === "playing" && started && !paused;
+    document.documentElement.dataset.gameplayActive = active ? "1" : "0";
+    return () => {
+      delete document.documentElement.dataset.gameplayActive;
+    };
+  }, [phase, started, paused]);
 
   const makeSessions = useCallback((): [GameSession, GameSession] => {
     const options = {
       difficulty,
       noFail: settingsRef.current.noFail,
+      hopoEnabled: settingsRef.current.hopoRelief,
       startTime: startOffset,
     };
     return [new GameSession(chart, options), new GameSession(chart, options)];
   }, [chart, difficulty, startOffset]);
 
   const controllerTime = useCallback(() => audioEngine.now(), []);
+  const judgeTime = useCallback(
+    () => calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
+    [controllerTime],
+  );
 
   const finishFaceOff = useCallback((): void => {
     if (finalizedRef.current) return;
@@ -152,15 +170,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
     audioEngine.stopRun();
     const p1 = sessions[0].snapshot();
     const p2 = sessions[1].snapshot();
-    const p1Alive = !p1.failed;
-    const p2Alive = !p2.failed;
-    let winner: 1 | 2 | "draw";
-    if (p1Alive && !p2Alive) winner = 1;
-    else if (p2Alive && !p1Alive) winner = 2;
-    else if (!p1Alive && !p2Alive) {
-      const [p1Fail, p2Fail] = failTimesRef.current;
-      winner = p1Fail < p2Fail ? 2 : p2Fail < p1Fail ? 1 : "draw";
-    } else winner = p1.score === p2.score ? "draw" : p1.score > p2.score ? 1 : 2;
+    const winner = decideFaceOffWinner(p1, p2, failTimesRef.current);
     setResult({ winner, p1, p2 });
     setPhase("done");
     setStarted(false);
@@ -235,7 +245,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
     setPausedHud([p1SnapshotRef.current, p2SnapshotRef.current]);
     for (const session of sessionsRef.current ?? []) {
       for (let lane = 0; lane < 5; lane += 1)
-        session.releaseFret(lane as 0 | 1 | 2 | 3 | 4, controllerTime());
+        session.releaseFret(lane as 0 | 1 | 2 | 3 | 4, judgeTime());
       session.setWhammy(false);
     }
     try {
@@ -243,7 +253,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
     } catch {
       // Keep the overlay and let the user retry from pause.
     }
-  }, [controllerTime]);
+  }, [judgeTime]);
 
   const resume = useCallback(async (): Promise<void> => {
     if (!pausedRef.current) return;
@@ -256,27 +266,36 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
     }
   }, []);
 
+  useEffect(() => {
+    if (!paused) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      void resume();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [paused, resume]);
+
   const activateStarPower = useCallback(
     (player: 1 | 2): void => {
       const sessions = sessionsRef.current;
       if (!sessions || pausedRef.current) return;
       const session = player === 1 ? sessions[0] : sessions[1];
-      const events = session.activateStarPower(
-        calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
-      );
+      const events = session.activateStarPower(judgeTime());
       processEvents(player, events);
     },
-    [controllerTime, processEvents],
+    [judgeTime, processEvents],
   );
 
   useEffect(() => {
-    if (!started) return;
+    if (!started || paused) return;
     const callbacks = {
       onFretDown: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         const sessions = sessionsRef.current;
         if (!sessions || pausedRef.current || eliminatedRef.current[player - 1]) return;
         if (audioEngine.countInRemaining() > 0.01) return;
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         const session = player === 1 ? sessions[0] : sessions[1];
         processEvents(player, session.pressFret(lane, time));
       },
@@ -284,16 +303,13 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
         const sessions = sessionsRef.current;
         if (!sessions) return;
         const session = player === 1 ? sessions[0] : sessions[1];
-        session.releaseFret(
-          lane,
-          calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
-        );
+        session.releaseFret(lane, judgeTime());
       },
       onStrum: (player: InputPlayer): void => {
         const sessions = sessionsRef.current;
         if (!sessions || pausedRef.current || eliminatedRef.current[player - 1]) return;
         if (audioEngine.countInRemaining() > 0.01) return;
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         const session = player === 1 ? sessions[0] : sessions[1];
         processEvents(player, session.strum(time));
       },
@@ -317,6 +333,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
         onFretUp: (player, lane) => callbacks.onFretUp(player, lane),
         onStrum: (player) => callbacks.onStrum(player),
         onStarPower: (player) => callbacks.onStarPower(player),
+        onPause: callbacks.onPause,
         onWhammy: (player, down) => callbacks.onWhammy(player, down),
       },
       2,
@@ -325,7 +342,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
       detachKeyboard();
       gamepads.detach();
     };
-  }, [started, activateStarPower, controllerTime, pause, processEvents, resume]);
+  }, [started, paused, activateStarPower, judgeTime, pause, processEvents, resume]);
 
   const autoplaySessions = useCallback(
     (time: number): void => {
@@ -367,7 +384,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
       const sessions = sessionsRef.current;
       if (!sessions) return;
       if (audioEngine.countInRemaining() <= 0.001) {
-        const time = controllerTime();
+        const time = judgeTime();
         if (autoplayUntilRef.current > performance.now()) autoplaySessions(time);
         const snapshots: [GameSnapshot, GameSnapshot] = [
           sessions[0].snapshot(),
@@ -412,7 +429,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [started, autoplaySessions, controllerTime, finishFaceOff, processEvents]);
+  }, [started, autoplaySessions, judgeTime, finishFaceOff, processEvents]);
 
   useEffect(() => {
     if (!started) return;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngineError, audioEngine } from "../audio/engine";
 import { GameCanvas } from "../components/GameCanvas";
 import { Meter } from "../components/Meter";
+import { useFocusTrap } from "../components/useFocusTrap";
 import type { TutorialLesson } from "../content/tutorial";
 import { TUTORIAL_LESSONS } from "../content/tutorial";
 import { GameSession } from "../game/session";
@@ -55,6 +56,8 @@ export function TutorialScreen(): React.JSX.Element {
   const regionRef = useRef<HTMLDivElement>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
   const resumeRef = useRef<HTMLButtonElement>(null);
+  const pauseDialogRef = useRef<HTMLDivElement>(null);
+  const outcomeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -72,8 +75,21 @@ export function TutorialScreen(): React.JSX.Element {
   useEffect(() => {
     if (paused) resumeRef.current?.focus();
   }, [paused]);
+  useFocusTrap(pauseDialogRef, paused);
+  useFocusTrap(outcomeRef, phase === "done");
+  useEffect(() => {
+    const active = phase === "playing" && started && !paused;
+    document.documentElement.dataset.gameplayActive = active ? "1" : "0";
+    return () => {
+      delete document.documentElement.dataset.gameplayActive;
+    };
+  }, [phase, started, paused]);
 
   const controllerTime = useCallback(() => audioEngine.now(), []);
+  const judgeTime = useCallback(
+    () => calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
+    [controllerTime],
+  );
 
   const finishLesson = useCallback(
     (lesson: TutorialLesson, snapshot: GameSnapshot, forcedPass = false): void => {
@@ -83,7 +99,8 @@ export function TutorialScreen(): React.JSX.Element {
       const accuracy = snapshot.accuracy;
       const starPass = !lesson.requiresStarActivation || snapshot.starPowerActivations > 0;
       const hopoPass = lesson.id !== "hopo" || hopoHitsRef.current > 0;
-      const passed = forcedPass || (accuracy >= 0.5 && starPass && hopoPass);
+      const sustainPass = lesson.id !== "sustains" || snapshot.sustainTicks > 0;
+      const passed = forcedPass || (accuracy >= 0.5 && starPass && hopoPass && sustainPass);
       setOutcome({
         passed,
         score: snapshot.score,
@@ -137,6 +154,7 @@ export function TutorialScreen(): React.JSX.Element {
       const session = new GameSession(lesson.chart, {
         difficulty: lesson.difficulty,
         noFail: true,
+        hopoEnabled: settingsRef.current.hopoRelief,
       });
       sessionRef.current = session;
       snapshotRef.current = session.snapshot();
@@ -187,6 +205,17 @@ export function TutorialScreen(): React.JSX.Element {
     }
   }, []);
 
+  useEffect(() => {
+    if (!paused) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      void resume();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [paused, resume]);
+
   const leave = useCallback((): void => {
     audioEngine.stopRun();
     startedRef.current = false;
@@ -200,32 +229,27 @@ export function TutorialScreen(): React.JSX.Element {
     const session = sessionRef.current;
     const lesson = activeRef.current;
     if (!session || !lesson || pausedRef.current) return;
-    const events = session.activateStarPower(
-      calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
-    );
+    const events = session.activateStarPower(judgeTime());
     processEvents(lesson, events);
-  }, [controllerTime, processEvents]);
+  }, [judgeTime, processEvents]);
 
   useEffect(() => {
-    if (!started || !activeLesson || phase !== "playing") return;
+    if (!started || !activeLesson || phase !== "playing" || paused) return;
     const callbacks = {
       onFretDown: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         if (player !== 1 || pausedRef.current || !sessionRef.current) return;
         if (audioEngine.countInRemaining() > 0.01) return;
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         processEvents(activeLesson, sessionRef.current.pressFret(lane, time));
       },
       onFretUp: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         if (player !== 1) return;
-        sessionRef.current?.releaseFret(
-          lane,
-          calibratedTime(controllerTime(), settingsRef.current.calibrationMs),
-        );
+        sessionRef.current?.releaseFret(lane, judgeTime());
       },
       onStrum: (player: InputPlayer): void => {
         if (player !== 1 || pausedRef.current || !sessionRef.current) return;
         if (audioEngine.countInRemaining() > 0.01) return;
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         processEvents(activeLesson, sessionRef.current.strum(time));
       },
       onStarPower: (player: InputPlayer): void => {
@@ -246,6 +270,7 @@ export function TutorialScreen(): React.JSX.Element {
         onFretUp: (player, lane) => callbacks.onFretUp(player, lane),
         onStrum: (player) => callbacks.onStrum(player),
         onStarPower: (player) => callbacks.onStarPower(player),
+        onPause: callbacks.onPause,
         onWhammy: (player, down) => callbacks.onWhammy(player, down),
       },
       1,
@@ -258,8 +283,9 @@ export function TutorialScreen(): React.JSX.Element {
     started,
     activeLesson,
     phase,
+    paused,
     activateStarPower,
-    controllerTime,
+    judgeTime,
     pause,
     processEvents,
     resume,
@@ -274,7 +300,7 @@ export function TutorialScreen(): React.JSX.Element {
       const session = sessionRef.current;
       if (!session) return;
       if (audioEngine.countInRemaining() <= 0.001) {
-        const time = calibratedTime(controllerTime(), settingsRef.current.calibrationMs);
+        const time = judgeTime();
         processEvents(activeLesson, session.update(time));
         const snapshot = session.snapshot();
         snapshotRef.current = snapshot;
@@ -288,7 +314,7 @@ export function TutorialScreen(): React.JSX.Element {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [started, activeLesson, phase, controllerTime, finishLesson, processEvents]);
+  }, [started, activeLesson, phase, judgeTime, finishLesson, processEvents]);
 
   useEffect(() => {
     if (!started || !activeLesson) return;
@@ -502,7 +528,13 @@ export function TutorialScreen(): React.JSX.Element {
         </p>
 
         {paused && (
-          <div className="pause-overlay" role="dialog" aria-modal="true" aria-label="Lesson paused">
+          <div
+            className="pause-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Lesson paused"
+            ref={pauseDialogRef}
+          >
             <div className="pause-panel">
               <p className="eyebrow">Paused</p>
               <h2>{activeLesson.title}</h2>

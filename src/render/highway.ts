@@ -541,7 +541,7 @@ export class HighwayRenderer {
 
       for (const lane of note.lanes) {
         const color = laneColor(lane, colorblind);
-        this.drawGem(lane, color, note.star, frame, p, state.status === "pending");
+        this.drawGem(lane, color, note.star, note.hopo, frame, p, state.status === "pending");
       }
     }
 
@@ -624,6 +624,7 @@ export class HighwayRenderer {
     lane: Lane,
     color: string,
     star: boolean,
+    hopo: boolean,
     frame: RenderFrame,
     p: number,
     pending: boolean,
@@ -665,6 +666,21 @@ export class HighwayRenderer {
     ctx.closePath();
     ctx.fill();
 
+    if (hopo) {
+      // A white ring is the HOPO cue: fret only, no strum.
+      ctx.strokeStyle = "rgba(255,255,255,0.92)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y, w * 0.56, h * 0.72, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.moveTo(x - w * 0.16, y - h * 0.16);
+      ctx.lineTo(x + w * 0.16, y - h * 0.16);
+      ctx.lineTo(x, y + h * 0.26);
+      ctx.closePath();
+      ctx.fill();
+    }
     if (star) {
       this.drawStar(x, y, Math.min(w, h) * 0.34, "rgba(255,248,203,0.95)");
     }

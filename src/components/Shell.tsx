@@ -22,7 +22,7 @@ interface ShellProps {
 
 export function Shell({ route, immersive, children }: ShellProps): JSX.Element {
   const save = useSave();
-  useGamepadMenu(route.name !== "play");
+  useGamepadMenu(true);
   const stars = careerStarTotal(save);
 
   return (
@@ -31,9 +31,17 @@ export function Shell({ route, immersive, children }: ShellProps): JSX.Element {
         save.settings.reduceMotion ? " app-shell--reduced" : ""
       }`}
     >
-      <a className="skip-link" href="#main">
+      <button
+        type="button"
+        className="skip-link"
+        onClick={() => {
+          const main = document.getElementById("main");
+          main?.focus();
+          main?.scrollIntoView({ block: "start" });
+        }}
+      >
         Skip to content
-      </a>
+      </button>
       {!immersive && (
         <header className="site-header">
           <div className="site-header__inner">

@@ -34,7 +34,12 @@ export function sliceChartForPractice(
   section: Section,
   preRollSeconds = 2.6,
 ): PracticeSlice {
-  const startSongTime = Math.max(0, section.start - preRollSeconds);
+  const beat = 60 / chart.bpm;
+  const rawStart = Math.max(0, section.start - preRollSeconds);
+  const startSongTime =
+    Math.abs(preRollSeconds / beat - Math.round(preRollSeconds / beat)) < 0.0001
+      ? Math.max(0, Math.round(rawStart / beat) * beat)
+      : rawStart;
   const shift = startSongTime;
   const duration = Math.max(0.5, section.end - startSongTime);
   const notes = chart.notes
@@ -44,6 +49,7 @@ export function sliceChartForPractice(
       id: index,
       time: Math.round((note.time - shift) * 1000) / 1000,
       duration: Math.round(note.duration * 1000) / 1000,
+      star: note.star && note.time >= section.start,
     }));
   const sections = chart.sections
     .filter((candidate) => candidate.end > startSongTime && candidate.start < section.end)

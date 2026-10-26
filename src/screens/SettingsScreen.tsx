@@ -73,10 +73,13 @@ export function SettingsScreen(): React.JSX.Element {
     setAudioMessage("");
     try {
       await audioEngine.unlock();
-      audioEngine.playUi();
-      setPulse(true);
-      setTimeout(() => setPulse(false), 240);
-      setAudioMessage("Click played. Adjust the offset until the click and pulse feel aligned.");
+      audioEngine.playCalibrationClick(settings.calibrationMs);
+      const pulseDelay = Math.max(0, -settings.calibrationMs);
+      window.setTimeout(() => setPulse(true), pulseDelay);
+      window.setTimeout(() => setPulse(false), pulseDelay + 240);
+      setAudioMessage(
+        "Click and pulse played. Adjust the offset until the delay between them disappears.",
+      );
     } catch (error) {
       setAudioMessage(
         error instanceof AudioEngineError
@@ -217,8 +220,9 @@ export function SettingsScreen(): React.JSX.Element {
         <section className="settings-section panel" aria-labelledby="calibration-settings">
           <h2 id="calibration-settings">Calibration</h2>
           <p className="quiet-note">
-            Use headphones or your usual speakers. If hits feel late, move the offset positive; if
-            they feel early, move it negative. Chart times never move.
+            Use headphones or your usual speakers. If your hits feel late, move the offset positive;
+            if they feel early, move it negative. Positive values delay the test click against the
+            pulse. Chart times never move.
           </p>
           <label className="field field--range">
             <span className="field__label">
@@ -260,6 +264,12 @@ export function SettingsScreen(): React.JSX.Element {
             description="The rock meter can empty without ending a run. Available in every mode for learning."
             checked={settings.noFail}
             onChange={(value) => set({ noFail: value })}
+          />
+          <Toggle
+            label="HOPO fretting"
+            description="Flagged notes can be hit by fretting alone after a hit. Turn off to require a strum for every note."
+            checked={settings.hopoRelief}
+            onChange={(value) => set({ hopoRelief: value })}
           />
           <p className="field__hint">
             Practice and Tutorial always use no-fail. Career and Quickplay still record real

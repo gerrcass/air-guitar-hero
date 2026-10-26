@@ -102,8 +102,21 @@ test.describe("shell and navigation", () => {
     await expectCompleteTabWalk(page, "#/settings");
   });
 
-  test("unknown hash routes fall back to the main menu", async ({ page }) => {
+  test("unknown routes and invalid song ids fall back safely", async ({ page }) => {
     await gotoRoute(page, "#/not-a-real-mode");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/guitar/i);
+    await gotoRoute(page, "#/play/quickplay/not-a-song/easy");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/guitar/i);
+    await gotoRoute(page, "#/%E0%A4%A");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/guitar/i);
+  });
+
+  test("skip to content stays on the route and focuses main", async ({ page }) => {
+    await gotoRoute(page, "#/settings");
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Skip to content" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#\/settings/);
+    await expect(page.locator("main")).toBeFocused();
   });
 });

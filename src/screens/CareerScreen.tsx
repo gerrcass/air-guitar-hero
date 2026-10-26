@@ -191,8 +191,8 @@ export function CareerScreen(): React.JSX.Element {
             <p className="eyebrow">The locker</p>
             <h2 id="locker-title">Six finishes, earned with stars</h2>
             <p>
-              Career stars accumulate across difficulties. Equip a guitar finish here; it follows
-              you into every mode.
+              Career stars accumulate across difficulties. Equip a guitar finish here; it shows on
+              the run gate before every performance.
             </p>
           </div>
           {nextGuitar && (

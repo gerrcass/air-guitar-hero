@@ -53,6 +53,13 @@ test.describe("career progression", () => {
     await expect(page.getByRole("button", { name: /Gutter Halo/ })).toHaveCount(0);
   });
 
+  test("a locked career deep link cannot start the run", async ({ page }) => {
+    await gotoRoute(page, "#/play/career/the-last-encore/expert");
+    await expect(page.getByText(/Locked career song/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start run" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Back to the career map" })).toBeVisible();
+  });
+
   test("a failed career run does not unlock anything", async ({ page }) => {
     await gotoRoute(page, "#/play/career/neon-throttle/medium");
     await startRunFromGate(page);

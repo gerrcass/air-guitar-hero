@@ -234,26 +234,40 @@ function planSections(song: SongDefinition): {
   return { sections, totalBars, barSeconds, duration: totalBars * barSeconds };
 }
 
-function slotActive(section: PlannedSection, bar: number, slot: number, slots: number): boolean {
+function motifAt(motif: readonly number[], index: number): boolean {
+  if (motif.length === 0) return false;
+  const normalized = ((index % motif.length) + motif.length) % motif.length;
+  return motif[normalized] === 1;
+}
+
+function slotActive(
+  section: PlannedSection,
+  bar: number,
+  slot: number,
+  slots: number,
+  motif: readonly number[],
+): boolean {
   if (slots === 16) {
-    const phraseSlot = Math.floor(slot / 2);
-    const strong = slot % 4 === 0;
-    const pickup = slot % 4 === 3;
-    return strong || pickup || (phraseSlot % 2 === 0 && slot % 2 === 1);
+    const group = Math.floor(slot / 2);
+    if (slot % 4 === 0) return true;
+    if (slot % 2 === 0) return motifAt(motif, group) || bar % 2 === 0;
+    return slot % 4 === 3 && motifAt(motif, group);
   }
   if (section.role === "intro") {
-    return slot === 0 || slot === 2 || slot === 3 || slot === 5 || slot === 6;
+    return (
+      slot === 0 || slot === 2 || slot === 3 || slot === 5 || slot === 6 || motifAt(motif, slot)
+    );
   }
   if (section.role === "outro") {
-    return slot === 0 && bar % 4 !== 3 ? true : slot === 4 && bar % 2 === 0;
+    return slot === 0 || (slot === 4 && (bar % 2 === 0 || motifAt(motif, 4)));
   }
   if (section.role === "bridge") {
-    return slot % 2 === 0 && (slot === 0 || slot === 2 || slot === 6);
+    return slot === 0 || slot === 3 || slot === 6 || (slot % 2 === 0 && motifAt(motif, slot));
   }
   if (section.role === "chorus") {
-    return slot === 0 || slot === 4 || slot === 2 || slot === 6;
+    return slot === 0 || slot === 2 || slot === 4 || slot === 6 || motifAt(motif, slot);
   }
-  return slot === 0 || slot === 1 || slot === 3 || slot === 4 || slot === 6;
+  return slot === 0 || slot === 1 || slot === 3 || slot === 4 || slot === 6 || motifAt(motif, slot);
 }
 
 function generateMaster(song: SongDefinition): {
@@ -266,7 +280,7 @@ function generateMaster(song: SongDefinition): {
 } {
   const plan = planSections(song);
   const beatSeconds = 60 / song.bpm;
-  const notes: GeneratedNote[] = [];
+  let notes: GeneratedNote[] = [];
 
   for (const section of plan.sections) {
     const progression = section.progression;
@@ -278,7 +292,7 @@ function generateMaster(song: SongDefinition): {
       const step = plan.barSeconds / slots;
       const lastBar = bar === section.bars - 1;
       for (let slot = 0; slot < slots; slot += 1) {
-        let active = slotActive(section, bar, slot, slots);
+        let active = slotActive(section, bar, slot, slots, song.motif);
         if (lastBar && section.role !== "outro" && slot === slots - 2) active = true;
         if (!active) continue;
         const contourIndex = (slot + bar * 2) % song.contour.length;
@@ -348,31 +362,41 @@ function generateMaster(song: SongDefinition): {
     guaranteedSustains += 1;
   }
 
-  // Star phrases live inside choruses and the solo, ten to twelve groups long.
+  // Star phrases are a breather: choose a window and keep every other note, dropping the
+  // in-between notes. The resulting phrase is eight to ten groups at a strummable spacing
+  // on every difficulty, rather than an Expert-speed burst carried into Easy.
+  const droppedByStarSpacing = new Set<number>();
   for (const section of plan.sections) {
     if (section.role !== "chorus" && section.role !== "solo") continue;
     const indices = notes
       .map((note, index) => ({ note, index }))
       .filter(({ note }) => note.time >= section.start && note.time < section.end)
       .map(({ index }) => index);
-    if (indices.length < 10) continue;
-    const length = section.role === "solo" ? 12 : 10;
+    const windowSize = section.role === "solo" ? 20 : 16;
+    if (indices.length < windowSize) continue;
     const start = Math.min(
-      indices.length - length,
-      Math.floor(indices.length * (section.role === "solo" ? 0.38 : 0.3)),
+      indices.length - windowSize,
+      Math.floor(indices.length * (section.role === "solo" ? 0.34 : 0.3)),
     );
-    const chosen = indices.slice(start, start + length);
-    for (const index of chosen) {
+    const windowIndices = indices.slice(start, start + windowSize);
+    const chosen = windowIndices.filter((_, offset) => offset % 2 === 0);
+    const chosenSet = new Set(chosen);
+    for (const index of windowIndices) {
       const note = notes[index];
-      if (note) note.star = true;
+      if (!note) continue;
+      if (chosenSet.has(index)) note.star = true;
+      else droppedByStarSpacing.add(index);
     }
-    const lastIndex = chosen[chosen.length - 1];
-    const last = lastIndex === undefined ? undefined : notes[lastIndex];
-    const after = lastIndex === undefined ? undefined : notes[lastIndex + 1];
-    if (last && after) {
-      const lengthToNext = after.time - last.time - 0.06;
-      if (lengthToNext >= 0.5) last.duration = Math.max(last.duration, Math.min(1.1, lengthToNext));
-    }
+  }
+  if (droppedByStarSpacing.size > 0) {
+    notes = notes.filter((_, index) => !droppedByStarSpacing.has(index));
+  }
+  for (let i = 0; i < notes.length; i += 1) {
+    const note = notes[i];
+    const after = notes[i + 1];
+    if (!note?.star || after?.star || !after) continue;
+    const available = after.time - note.time - 0.06;
+    if (available >= 0.5) note.duration = Math.max(note.duration, Math.min(1.1, available));
   }
 
   // Guarantee sustains in every song and difficulty: extend the final note of each

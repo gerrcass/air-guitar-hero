@@ -97,6 +97,8 @@ export interface GameSnapshot {
 export interface SessionOptions {
   readonly difficulty: Difficulty;
   readonly noFail?: boolean;
+  /** When false, HOPO notes require a strum (accessibility relief). */
+  readonly hopoEnabled?: boolean;
   /** Chart time the run starts at, used by Practice sections. */
   readonly startTime?: number;
   /** Chart time the run ends at, used by Practice sections. */

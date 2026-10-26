@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://localhost:4173/air-guitar-hero/";
+const baseURL = "http://localhost:4317/air-guitar-hero/";
 
 export default defineConfig({
   testDir: "./e2e",
