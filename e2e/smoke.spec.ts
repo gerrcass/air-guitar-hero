@@ -1,5 +1,53 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { expectNoConsoleErrors, gotoRoute, trackConsole } from "../e2e/helpers";
+
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+async function expectCompleteTabWalk(page: Page, hash: string): Promise<void> {
+  // Start from a fresh document so sequential focus starts at the top of this route
+  // rather than continuing from the previous route's last focused link.
+  await page.goto("about:blank");
+  await gotoRoute(page, hash);
+  const stops = await page.evaluate((selector) => {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(
+      (element) => element.tabIndex >= 0 && element.getClientRects().length > 0,
+    );
+    return nodes.map((element, index) => {
+      element.dataset.tabProbe = String(index);
+      return element.tagName;
+    });
+  }, TABBABLE);
+  expect(stops.length, `tab stops on ${hash}`).toBeGreaterThan(10);
+
+  for (let index = 0; index < stops.length; index += 1) {
+    await page.keyboard.press("Tab");
+    const focused = await page.evaluate(() => {
+      const element = document.activeElement as HTMLElement | null;
+      if (!element) return null;
+      const labelledBy = element.getAttribute("aria-labelledby");
+      const candidates = [
+        element.getAttribute("aria-label"),
+        labelledBy ? document.getElementById(labelledBy)?.textContent : null,
+        (element as HTMLInputElement).labels?.[0]?.textContent,
+        element.textContent,
+        element.getAttribute("title"),
+      ];
+      const name =
+        candidates
+          .map((value) => value?.replace(/\s+/g, " ").trim() ?? "")
+          .find((value) => value.length > 0) ?? "";
+      return {
+        probe: element.dataset.tabProbe ?? null,
+        focusVisible: element.matches(":focus-visible"),
+        name,
+      };
+    });
+    expect(focused?.probe, `tab stop ${index} on ${hash}`).toBe(String(index));
+    expect(focused?.focusVisible, `focus ring at tab stop ${index} on ${hash}`).toBe(true);
+    expect(focused?.name, `accessible name at tab stop ${index} on ${hash}`).not.toBe("");
+  }
+}
 
 test.describe("shell and navigation", () => {
   test("loads the main menu and every top-level mode without console errors", async ({ page }) => {
@@ -45,6 +93,13 @@ test.describe("shell and navigation", () => {
     await expect(focused).toBeVisible();
     const tag = await focused.evaluate((element) => element.tagName);
     expect(["A", "BUTTON", "INPUT"]).toContain(tag);
+  });
+
+  test("Tab reaches every visible control in order with a name and focus ring", async ({
+    page,
+  }) => {
+    await expectCompleteTabWalk(page, "#/");
+    await expectCompleteTabWalk(page, "#/settings");
   });
 
   test("unknown hash routes fall back to the main menu", async ({ page }) => {

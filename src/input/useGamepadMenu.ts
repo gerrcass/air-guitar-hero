@@ -38,7 +38,10 @@ function adjustRange(direction: number): boolean {
   const lower = Number.isFinite(min) ? min : current - step;
   const upper = Number.isFinite(max) ? max : current + step;
   const next = Math.min(upper, Math.max(lower, current + direction * step));
-  active.value = String(next);
+  // React tracks the value setter on the element, so assigning `value` directly hides the
+  // change from its onChange listener. Go through the native setter, as a real user would.
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  setValue?.call(active, String(next));
   active.dispatchEvent(new Event("input", { bubbles: true }));
   active.dispatchEvent(new Event("change", { bubbles: true }));
   return true;
