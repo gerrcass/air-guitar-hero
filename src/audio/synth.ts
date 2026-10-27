@@ -35,4 +35,9 @@ export function createNoiseBuffer(ctx: AudioContext, seconds = 2.5, seed = 0x5ee
   return buffer;
 }
 
+/** Real seconds for a song-time duration at a practice playback speed. */
+export function stretchDuration(seconds: number, speed: number): number {
+  return seconds / Math.max(0.25, speed);
+}
+
 export type Tone = "saw" | "square" | "triangle";

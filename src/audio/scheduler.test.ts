@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { EventScheduler } from "./scheduler";
+import { stretchDuration } from "./synth";
 import type { AudioEvent } from "./types";
 
 function note(time: number, midi = 60): AudioEvent {
   return { instrument: "lead", time, duration: 0.2, midi, velocity: 0.8 };
 }
+
+describe("playback stretching", () => {
+  it("stretches note durations with the same tempo factor as start times", () => {
+    expect(stretchDuration(2, 1)).toBe(2);
+    expect(stretchDuration(2, 0.5)).toBe(4);
+    expect(stretchDuration(2, 0.75)).toBeCloseTo(2.6667, 3);
+  });
+});
 
 describe("EventScheduler", () => {
   it("emits each event once, in order, within the look-ahead horizon", () => {

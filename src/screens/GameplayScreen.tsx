@@ -102,6 +102,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const pauseResumeRef = useRef<HTMLButtonElement>(null);
   const pauseDialogRef = useRef<HTMLDivElement>(null);
+  const audioErrorRef = useRef<HTMLDivElement>(null);
   const gameRegionRef = useRef<HTMLDivElement>(null);
   const liveTickRef = useRef(0);
   const lastSfxRef = useRef(0);
@@ -120,13 +121,14 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
     if (paused) pauseResumeRef.current?.focus();
   }, [paused]);
   useFocusTrap(pauseDialogRef, paused);
+  useFocusTrap(audioErrorRef, Boolean(audioError) && started);
   useEffect(() => {
-    const active = started && !paused;
+    const active = started && !paused && !audioError;
     document.documentElement.dataset.gameplayActive = active ? "1" : "0";
     return () => {
       delete document.documentElement.dataset.gameplayActive;
     };
-  }, [started, paused]);
+  }, [started, paused, audioError]);
   const controllerTime = useCallback((): number => {
     const raw = audioEngine.now();
     return practice ? raw - startSongTime : raw;
@@ -194,6 +196,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
         passed,
         stars,
         newBest: recorded?.newBest ?? false,
+        ...(options.abandoned ? { abandoned: true } : {}),
         sustainTicks: snapshot.sustainTicks,
         starPowerActivations: snapshot.starPowerActivations,
         totalNotes: snapshot.totalNotes,
@@ -327,10 +330,12 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       setPaused(false);
       setLiveText("Resumed.");
     } catch (error) {
+      pausedRef.current = false;
+      setPaused(false);
       setAudioError(
         error instanceof AudioEngineError
           ? error.message
-          : "Audio could not resume. Retry the run from the pause menu.",
+          : "Audio could not resume. Retry the run from the audio error panel.",
       );
     }
   }, []);
@@ -368,7 +373,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
   }, [finalizeRun]);
 
   useEffect(() => {
-    if (!started || paused) return;
+    if (!started || paused || audioError) return;
     const callbacks = {
       onFretDown: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         if (pausedRef.current || finalizedRef.current || player !== 1) return;
@@ -412,7 +417,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       detachKeyboard();
       gamepads.detach();
     };
-  }, [started, paused, activateStarPower, judgeTime, processEvents, togglePause]);
+  }, [started, paused, audioError, activateStarPower, judgeTime, processEvents, togglePause]);
 
   useEffect(() => {
     if (!started) return;
@@ -499,7 +504,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       const remaining = audioEngine.countInRemaining();
       setCountIn(remaining > 0.03 ? Math.max(1, Math.ceil(remaining / beat)) : 0);
       liveTickRef.current += 1;
-      if (liveTickRef.current % 12 === 0 && !pausedRef.current) {
+      if (liveTickRef.current % 30 === 0 && !pausedRef.current) {
         setLiveText(
           `Score ${snapshot.score}. Streak ${snapshot.streak}. Multiplier ${snapshot.multiplier}. Rock ${Math.round(
             snapshot.rock * 100,
@@ -686,7 +691,7 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
             </div>
           )}
           {audioError && (
-            <div className="audio-error" role="alert">
+            <div className="audio-error" role="alert" ref={audioErrorRef}>
               <div>
                 <h2>Audio interrupted</h2>
                 <p>{audioError}</p>
@@ -742,6 +747,9 @@ export function GameplayScreen({ route }: GameplayScreenProps): React.JSX.Elemen
       <a className="gate-back" href={hubFor(route.mode)}>
         ← {modeLabel}
       </a>
+      <p className="mobile-gate-note" role="note">
+        Gameplay needs a keyboard or gamepad. Menus work on touch.
+      </p>
       <div className="gate-layout">
         <div className="gate-art">
           <AlbumArt song={song} />

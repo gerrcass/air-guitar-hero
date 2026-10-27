@@ -13,6 +13,7 @@ export interface CompletedRun {
   readonly passed: boolean;
   readonly stars: number;
   readonly newBest: boolean;
+  readonly abandoned?: boolean;
   readonly sustainTicks: number;
   readonly starPowerActivations: number;
   readonly totalNotes: number;

@@ -12,6 +12,10 @@ test.describe("tutorial", () => {
     await page.evaluate(() => window.__AGH_TEST__?.completeLesson?.());
     await expect(page.locator(".lesson-outcome")).toBeVisible();
     await expect(page.locator(".lesson-outcome h2")).toContainText("Single notes");
+    for (let index = 0; index < 6; index += 1) await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest(".lesson-outcome"))),
+    ).toBe(true);
     await page.getByRole("button", { name: "Back to lessons" }).click();
     await expect(page.locator(".tutorial-progress__value")).toContainText("1/5");
 

@@ -150,7 +150,10 @@ export class GameSession {
     const index = this.noteIndexById.get(id);
     const existing = index === undefined ? undefined : this.states[index];
     if (index === undefined || !existing) return;
-    this.states[index] = { ...existing, ...patch };
+    // Replace the array so snapshots already handed to the renderer stay immutable.
+    this.states = this.states.map((state, stateIndex) =>
+      stateIndex === index ? { ...state, ...patch } : state,
+    );
   }
 
   private noteFor(id: number): (typeof this.chart.notes)[number] | undefined {
@@ -196,40 +199,30 @@ export class GameSession {
   }
 
   private earliestCandidate(time: number, requireHeld: boolean): number | null {
-    let best: number | null = null;
-    let bestDelta = Number.POSITIVE_INFINITY;
+    // Chart notes are sorted. Consume the earliest eligible note in the window, even when a
+    // later note happens to be closer to the input timestamp.
     for (const note of this.chart.notes) {
       const state = this.stateFor(note.id);
       if (state?.status !== "pending") continue;
-      const delta = Math.abs(note.time - time);
-      if (delta > this.goodWindow) continue;
+      if (Math.abs(note.time - time) > this.goodWindow) continue;
       if (requireHeld && !note.lanes.every((lane) => this.held[lane])) continue;
-      if (delta < bestDelta) {
-        best = note.id;
-        bestDelta = delta;
-      }
+      return note.id;
     }
-    return best;
+    return null;
   }
 
   private earliestHopo(time: number): number | null {
     if (this.options.hopoEnabled === false) return null;
-    let best: number | null = null;
-    let bestDelta = Number.POSITIVE_INFINITY;
     for (const note of this.chart.notes) {
       if (!note.hopo || note.lanes.length > 1) continue;
       const state = this.stateFor(note.id);
       if (state?.status !== "pending") continue;
-      const delta = Math.abs(note.time - time);
-      if (delta > this.goodWindow) continue;
+      if (Math.abs(note.time - time) > this.goodWindow) continue;
       if (!note.lanes.every((lane) => this.held[lane])) continue;
       if (!this.canHopoTarget(note.id)) continue;
-      if (delta < bestDelta) {
-        best = note.id;
-        bestDelta = delta;
-      }
+      return note.id;
     }
-    return best;
+    return null;
   }
 
   private completeStarPhrases(time: number): GameEvent[] {
@@ -337,12 +330,14 @@ export class GameSession {
       }
       let next = this.nextTick.get(note.id) ?? note.time + this.tickSeconds;
       const ceiling = Math.min(time, end);
+      let stateTicks = state.sustainTicks;
       while (next <= ceiling) {
         const multiplier = this.effectiveMultiplier();
         const points = SUSTAIN_TICK_POINTS * multiplier;
         this.score += points;
         this.sustainTicks += 1;
-        this.setState(note.id, { sustainTicks: (state.sustainTicks ?? 0) + 1 });
+        stateTicks += 1;
+        this.setState(note.id, { sustainTicks: stateTicks });
         let starGain = 0;
         if (note.star && this.whammy) {
           starGain = 0.002;

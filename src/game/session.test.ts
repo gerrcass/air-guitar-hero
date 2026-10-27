@@ -93,6 +93,27 @@ describe("GameSession judgement", () => {
     expect(s.snapshot().rock).toBeLessThan(0.64);
   });
 
+  it("consumes the earliest eligible note when two windows overlap", () => {
+    const s = session([note(0, 5, [0]), note(1, 5.1, [0])]);
+    s.pressFret(0, 5.06);
+    const events = s.strum(5.06);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "judgement", noteId: 0, judgement: "great" }),
+    );
+    expect(s.snapshot().noteStates[0]?.status).toBe("hit");
+    expect(s.snapshot().noteStates[1]?.status).toBe("pending");
+    s.strum(5.1);
+    expect(s.snapshot().noteStates[1]?.status).toBe("hit");
+  });
+
+  it("leaves previously returned snapshots immutable", () => {
+    const s = session([note(0, 5, [0])]);
+    const before = s.snapshot();
+    hit(s, 5);
+    expect(before.noteStates[0]?.status).toBe("pending");
+    expect(s.snapshot().noteStates[0]?.status).toBe("hit");
+  });
+
   it("does not score the same note twice", () => {
     const s = session([note(0, 5, [0])]);
     hit(s, 5);

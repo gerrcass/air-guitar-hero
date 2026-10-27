@@ -1,5 +1,5 @@
 import type { Arrangement, AudioEvent, MelodicEvent } from "../audio/types";
-import { GOOD_WINDOW, sustainTickSeconds } from "../game/constants";
+import { GOOD_WINDOW, multiplierForStreak, sustainTickSeconds } from "../game/constants";
 import type { Chart, Difficulty, Lane, NoteGroup, Section } from "../game/types";
 import { DIFFICULTIES } from "../game/types";
 import { songById } from "./songs";
@@ -460,11 +460,11 @@ function mapLanes(lanes: readonly Lane[], difficulty: Difficulty): Lane[] {
 
 function recomputeHopo(notes: NoteGroup[], difficulty: Difficulty, bpm: number): NoteGroup[] {
   const beat = 60 / bpm;
-  const threshold = Math.min(0.18, beat / 3);
+  const threshold = Math.min(0.3, beat / 2.2);
   if (difficulty === "easy" || difficulty === "medium") {
     return notes.map((note) => ({ ...note, hopo: false }));
   }
-  return notes.map((note, index) => {
+  const marked = notes.map((note, index) => {
     const previous = notes[index - 1];
     if (!previous || previous.lanes.length > 1 || note.lanes.length > 1) {
       return { ...note, hopo: false };
@@ -472,16 +472,35 @@ function recomputeHopo(notes: NoteGroup[], difficulty: Difficulty, bpm: number):
     const gap = note.time - previous.time;
     return { ...note, hopo: gap >= 0.075 && gap <= threshold };
   });
+  if (marked.some((note) => note.hopo)) return marked;
+  // Slow doom/dream songs can have no 16th-note grid at all. Give them a sparse 8th-note
+  // HOPO run so Hard and Expert still teach the mechanic.
+  const fallback = beat * 0.55;
+  return notes.map((note, index) => {
+    const previous = notes[index - 1];
+    if (!previous || previous.lanes.length > 1 || note.lanes.length > 1) {
+      return { ...note, hopo: false };
+    }
+    const gap = note.time - previous.time;
+    return { ...note, hopo: gap >= 0.075 && gap <= fallback };
+  });
 }
 
 function calculatePar(notes: readonly NoteGroup[], bpm: number): number {
-  const gemCount = notes.reduce((sum, note) => sum + note.lanes.length, 0);
+  // Par is a clean-run reference: walk the real multiplier curve so five stars requires a
+  // sustained performance, not merely finishing. Star power is upside above par.
   const tickSeconds = sustainTickSeconds(bpm);
-  const estimatedTicks = notes.reduce(
-    (sum, note) => sum + (note.duration > 0 ? Math.floor(note.duration / tickSeconds) : 0),
-    0,
-  );
-  return Math.max(1, Math.round(gemCount * 50 * 2.6 + estimatedTicks * 30 + notes.length * 5));
+  let streak = 0;
+  let score = 0;
+  for (const note of notes) {
+    streak += 1;
+    const multiplier = multiplierForStreak(streak);
+    score += note.lanes.length * 50 * multiplier;
+    if (note.duration > 0) {
+      score += Math.floor(note.duration / tickSeconds) * 10 * multiplier;
+    }
+  }
+  return Math.max(1, Math.round(score));
 }
 
 function buildChart(

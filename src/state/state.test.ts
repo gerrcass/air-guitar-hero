@@ -24,7 +24,7 @@ import {
   withEquippedGuitar,
   withSettings,
 } from "./save";
-import { approachSeconds, calibratedTime, mergeSettings } from "./settings";
+import { approachSeconds, calibratedTime, calibrationTestDelays, mergeSettings } from "./settings";
 import { SaveStore } from "./store";
 
 const ANCHOR = SONGS_BY_VENUE["rusty-anchor"];
@@ -128,6 +128,9 @@ describe("save", () => {
     expect(calibratedTime(10, 50)).toBeCloseTo(9.95);
     expect(calibratedTime(10, -40)).toBeCloseTo(10.04);
     expect(approachSeconds(1)).toBeGreaterThan(approachSeconds(5));
+    expect(calibrationTestDelays(100)).toEqual({ clickMs: 0, pulseMs: 100 });
+    expect(calibrationTestDelays(-100)).toEqual({ clickMs: 100, pulseMs: 0 });
+    expect(calibrationTestDelays(0)).toEqual({ clickMs: 0, pulseMs: 0 });
   });
 });
 

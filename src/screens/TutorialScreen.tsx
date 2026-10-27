@@ -38,6 +38,8 @@ export function TutorialScreen(): React.JSX.Element {
   const [outcome, setOutcome] = useState<LessonOutcome | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [pausedSnapshot, setPausedSnapshot] = useState<GameSnapshot | null>(null);
+  const [liveText, setLiveText] = useState("Lesson ready.");
+  const liveTickRef = useRef(0);
 
   const activeLesson = useMemo(
     () => TUTORIAL_LESSONS.find((lesson) => lesson.id === activeId) ?? null,
@@ -58,6 +60,7 @@ export function TutorialScreen(): React.JSX.Element {
   const resumeRef = useRef<HTMLButtonElement>(null);
   const pauseDialogRef = useRef<HTMLDivElement>(null);
   const outcomeRef = useRef<HTMLDivElement>(null);
+  const audioErrorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -77,13 +80,14 @@ export function TutorialScreen(): React.JSX.Element {
   }, [paused]);
   useFocusTrap(pauseDialogRef, paused);
   useFocusTrap(outcomeRef, phase === "done");
+  useFocusTrap(audioErrorRef, Boolean(audioError) && phase === "playing");
   useEffect(() => {
-    const active = phase === "playing" && started && !paused;
+    const active = phase === "playing" && started && !paused && !audioError;
     document.documentElement.dataset.gameplayActive = active ? "1" : "0";
     return () => {
       delete document.documentElement.dataset.gameplayActive;
     };
-  }, [phase, started, paused]);
+  }, [phase, started, paused, audioError]);
 
   const controllerTime = useCallback(() => audioEngine.now(), []);
   const judgeTime = useCallback(
@@ -154,7 +158,7 @@ export function TutorialScreen(): React.JSX.Element {
       const session = new GameSession(lesson.chart, {
         difficulty: lesson.difficulty,
         noFail: true,
-        hopoEnabled: settingsRef.current.hopoRelief,
+        hopoEnabled: lesson.id === "hopo" ? true : settingsRef.current.hopoRelief,
       });
       sessionRef.current = session;
       snapshotRef.current = session.snapshot();
@@ -201,6 +205,8 @@ export function TutorialScreen(): React.JSX.Element {
       pausedRef.current = false;
       setPaused(false);
     } catch {
+      pausedRef.current = false;
+      setPaused(false);
       setAudioError("Audio could not resume. Restart the lesson.");
     }
   }, []);
@@ -234,7 +240,7 @@ export function TutorialScreen(): React.JSX.Element {
   }, [judgeTime, processEvents]);
 
   useEffect(() => {
-    if (!started || !activeLesson || phase !== "playing" || paused) return;
+    if (!started || !activeLesson || phase !== "playing" || paused || audioError) return;
     const callbacks = {
       onFretDown: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         if (player !== 1 || pausedRef.current || !sessionRef.current) return;
@@ -284,6 +290,7 @@ export function TutorialScreen(): React.JSX.Element {
     activeLesson,
     phase,
     paused,
+    audioError,
     activateStarPower,
     judgeTime,
     pause,
@@ -324,6 +331,16 @@ export function TutorialScreen(): React.JSX.Element {
       if (snapshot) setHud(snapshot);
       const remaining = audioEngine.countInRemaining();
       setCountIn(remaining > 0.03 ? Math.max(1, Math.ceil(remaining / beat)) : 0);
+      liveTickRef.current += 1;
+      if (liveTickRef.current % 30 === 0) {
+        setLiveText(
+          snapshot && snapshot.judgedNotes > 0
+            ? `Accuracy ${Math.round(snapshot.accuracy * 100)} percent. Star power ${Math.round(
+                snapshot.starPower * 100,
+              )} percent.`
+            : "Lesson ready.",
+        );
+      }
     }, 90);
     return () => clearInterval(timer);
   }, [started, activeLesson]);
@@ -520,11 +537,7 @@ export function TutorialScreen(): React.JSX.Element {
           </div>
         )}
         <p className="sr-only" aria-live="polite">
-          {hud && hud.judgedNotes > 0
-            ? `Accuracy ${Math.round(hud.accuracy * 100)} percent. Star power ${Math.round(
-                hud.starPower * 100,
-              )} percent.`
-            : "Lesson ready."}
+          {liveText}
         </p>
 
         {paused && (
@@ -593,6 +606,7 @@ export function TutorialScreen(): React.JSX.Element {
             role="dialog"
             aria-modal="true"
             aria-label="Lesson result"
+            ref={outcomeRef}
           >
             <div className="lesson-outcome__panel">
               <p className="eyebrow">{outcome.passed ? "Lesson complete" : "One more rep"}</p>

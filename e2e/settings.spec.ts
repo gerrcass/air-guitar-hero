@@ -49,6 +49,44 @@ test.describe("settings", () => {
     await expect(page.getByRole("checkbox", { name: /Colourblind palette/ })).not.toBeChecked();
   });
 
+  test("shows a focusable recovery panel when audio resume fails mid-run", async ({ browser }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      const Original = window.AudioContext;
+      let resumes = 0;
+      class FlakyAudioContext extends Original {
+        override async resume(): Promise<void> {
+          resumes += 1;
+          if (resumes >= 2) throw new Error("resume blocked by test");
+          return super.resume();
+        }
+      }
+      Object.defineProperty(window, "AudioContext", {
+        configurable: true,
+        value: FlakyAudioContext,
+      });
+    });
+    await page.goto("/air-guitar-hero/?e2e=1#/play/quickplay/neon-throttle/easy");
+    await page.getByRole("button", { name: "Start run" }).click();
+    await page.waitForTimeout(500);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Run paused" })).toBeVisible();
+    await page
+      .getByRole("dialog", { name: "Run paused" })
+      .getByRole("button", { name: "Resume" })
+      .click();
+    const alert = page.getByRole("alert").first();
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText(/audio could not resume/i);
+    await expect(alert.getByRole("button", { name: "Retry audio" })).toBeFocused();
+    for (let index = 0; index < 5; index += 1) await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest(".audio-error"))),
+    ).toBe(true);
+    await context.close();
+  });
+
   test("shows a recoverable audio error when the AudioContext cannot start", async ({
     browser,
   }) => {

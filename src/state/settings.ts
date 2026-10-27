@@ -76,6 +76,17 @@ export function calibratedTime(audioSeconds: number, calibrationMs: number): num
   return audioSeconds - calibrationMs / 1000;
 }
 
+/** Relative delays used by the calibration click/pulse, in milliseconds. */
+export function calibrationTestDelays(calibrationMs: number): {
+  readonly clickMs: number;
+  readonly pulseMs: number;
+} {
+  return {
+    clickMs: Math.max(0, -calibrationMs),
+    pulseMs: Math.max(0, calibrationMs),
+  };
+}
+
 /** Seconds a note is visible on the highway for a given 1–5 speed setting. */
 export function approachSeconds(noteSpeed: number): number {
   const clamped = clamp(noteSpeed, 1, 5);

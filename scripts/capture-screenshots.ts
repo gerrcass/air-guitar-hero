@@ -31,8 +31,8 @@ async function startRun(page: Page): Promise<void> {
   await page.waitForTimeout(450);
 }
 
-async function screenshot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: `${OUT}/${name}.png`, animations: "disabled" });
+async function screenshot(page: Page, name: string, fullPage = false): Promise<void> {
+  await page.screenshot({ path: `${OUT}/${name}.png`, animations: "disabled", fullPage });
   console.log(`captured ${OUT}/${name}.png`);
 }
 
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
     await page.evaluate(() => window.__AGH_TEST__?.completeRun?.());
     await page.waitForURL(/#\/results/);
     await page.waitForTimeout(500);
-    await screenshot(page, "results");
+    await screenshot(page, "results", true);
 
     await goto(page, "#/career");
     await screenshot(page, "career");

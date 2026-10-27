@@ -2053,12 +2053,17 @@ button.song-card:hover .album-art {
   align-items: start;
 }
 
+.extras-grid > * {
+  min-width: 0;
+}
+
 .extras-grid .panel h2 {
   margin-bottom: 14px;
 }
 
 .control-table {
   width: 100%;
+  table-layout: fixed;
   font-size: 0.8rem;
   border-collapse: collapse;
 }
@@ -2086,6 +2091,7 @@ button.song-card:hover .album-art {
 
 .control-table td {
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .extras-list {
@@ -3185,6 +3191,13 @@ button.song-card:hover .album-art {
   color: var(--quiet);
 }
 
+.mobile-gate-note {
+  display: none;
+  margin-top: 22px;
+  font-size: 0.76rem;
+  color: var(--amber);
+}
+
 .gate-guitar {
   display: flex;
   gap: 12px;
@@ -3585,7 +3598,8 @@ button.song-card:hover .album-art {
     width: min(100% - 28px, 1440px);
   }
 
-  .mobile-note {
+  .mobile-note,
+  .mobile-gate-note {
     display: block;
   }
 

@@ -71,5 +71,13 @@ test.describe("responsive layout", () => {
     await gotoRoute(page, "#/");
     await expect(page.locator(".mobile-note")).toBeVisible();
     await expect(page.locator(".mobile-note")).toContainText("keyboard or gamepad");
+    await gotoRoute(page, "#/play/quickplay/neon-throttle/easy");
+    await expect(page.locator(".mobile-gate-note")).toBeVisible();
+    await expect(page.locator(".mobile-gate-note")).toContainText("keyboard or gamepad");
+    await gotoRoute(page, "#/extras");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
   });
 });

@@ -13,10 +13,27 @@ test.describe("face-off", () => {
     await expect(page.locator(".faceoff-hud--p1")).toBeVisible();
     await expect(page.locator(".faceoff-hud--p2")).toBeVisible();
     await page.waitForTimeout(800);
+    await page.keyboard.press("Escape");
+    const pauseDialog = page.getByRole("dialog", { name: "Face-off paused" });
+    await expect(pauseDialog).toBeVisible();
+    await expect(pauseDialog.getByRole("button", { name: "Resume" })).toBeFocused();
+    for (let index = 0; index < 7; index += 1) await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest("[role=dialog]"))),
+    ).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(pauseDialog).toBeHidden();
     await page.evaluate(() => window.__AGH_TEST__?.autoplay?.(8));
     await page.waitForTimeout(6000);
     await page.evaluate(() => window.__AGH_TEST__?.finishRun?.());
     await expect(page.locator(".faceoff-result")).toBeVisible();
+    await expect(
+      page.locator(".faceoff-result").getByRole("button", { name: "Rematch" }),
+    ).toBeFocused();
+    for (let index = 0; index < 7; index += 1) await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest(".faceoff-result"))),
+    ).toBe(true);
     await expect(page.locator(".faceoff-result h2")).toContainText(/player/i);
     await expect(page.locator(".faceoff-result__scores")).toContainText("Player 1");
     await expect(page.locator(".faceoff-result__scores")).toContainText("Player 2");

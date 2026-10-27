@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AudioEngineError, audioEngine } from "../audio/engine";
 import { difficultyLabel } from "../components/DifficultyPicker";
-import { noteSpeedLabel } from "../state/settings";
+import { calibrationTestDelays, noteSpeedLabel } from "../state/settings";
 import { saveStore, useSave } from "../state/store";
 
 function useGamepadCount(): number {
@@ -73,10 +73,10 @@ export function SettingsScreen(): React.JSX.Element {
     setAudioMessage("");
     try {
       await audioEngine.unlock();
+      const delays = calibrationTestDelays(settings.calibrationMs);
       audioEngine.playCalibrationClick(settings.calibrationMs);
-      const pulseDelay = Math.max(0, -settings.calibrationMs);
-      window.setTimeout(() => setPulse(true), pulseDelay);
-      window.setTimeout(() => setPulse(false), pulseDelay + 240);
+      window.setTimeout(() => setPulse(true), delays.pulseMs);
+      window.setTimeout(() => setPulse(false), delays.pulseMs + 240);
       setAudioMessage(
         "Click and pulse played. Adjust the offset until the delay between them disappears.",
       );

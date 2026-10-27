@@ -1,6 +1,6 @@
 import type { Settings } from "../state/settings";
 import { EventScheduler } from "./scheduler";
-import { createNoiseBuffer, makeDistortionCurve, midiToFrequency } from "./synth";
+import { createNoiseBuffer, makeDistortionCurve, midiToFrequency, stretchDuration } from "./synth";
 import type { Arrangement, AudioEvent, DrumKind, MelodicEvent } from "./types";
 
 export class AudioEngineError extends Error {
@@ -340,7 +340,7 @@ export class AudioEngine {
   private scheduleMelodic(event: MelodicEvent, when: number): void {
     const ctx = this.ctx;
     if (!ctx || !this.musicBus) return;
-    const duration = Math.max(0.06, event.duration);
+    const duration = Math.max(0.06, stretchDuration(event.duration, this.speed));
     const frequency = midiToFrequency(event.midi);
     const voiceGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
@@ -569,11 +569,14 @@ export class AudioEngine {
     this.blip(1180, 0.035, "sine", 0.05);
   }
 
-  /** Calibration click: positive offset delays the click relative to the visual pulse. */
+  /**
+   * Calibration click. A positive offset models late audio by delaying the visual side, so
+   * the click stays immediate and the UI delays the pulse by the same positive offset.
+   */
   playCalibrationClick(offsetMs: number): void {
     const ctx = this.ctx;
     if (!ctx || !this.sfxBus || ctx.state !== "running") return;
-    const delay = Math.max(0, offsetMs) / 1000;
+    const delay = Math.max(0, -offsetMs) / 1000;
     this.scheduleClick(ctx.currentTime + 0.02 + delay, true);
   }
 }

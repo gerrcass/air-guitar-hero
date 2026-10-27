@@ -1,4 +1,4 @@
-import { sustainTickSeconds } from "../game/constants";
+import { multiplierForStreak, sustainTickSeconds } from "../game/constants";
 import type { Chart, Section } from "../game/types";
 
 export interface PracticeSlice {
@@ -10,13 +10,16 @@ export interface PracticeSlice {
 }
 
 function calculatePar(notes: Chart["notes"], bpm: number): number {
-  const gems = notes.reduce((sum, note) => sum + note.lanes.length, 0);
   const tick = sustainTickSeconds(bpm);
-  const ticks = notes.reduce(
-    (sum, note) => sum + (note.duration > 0 ? Math.floor(note.duration / tick) : 0),
-    0,
-  );
-  return Math.max(1, Math.round(gems * 50 * 2.6 + ticks * 30 + notes.length * 5));
+  let streak = 0;
+  let score = 0;
+  for (const note of notes) {
+    streak += 1;
+    const multiplier = multiplierForStreak(streak);
+    score += note.lanes.length * 50 * multiplier;
+    if (note.duration > 0) score += Math.floor(note.duration / tick) * 10 * multiplier;
+  }
+  return Math.max(1, Math.round(score));
 }
 
 /** True when a looping practice chart has reached its restart boundary. */

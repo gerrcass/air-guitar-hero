@@ -5,7 +5,7 @@ import { getComposedSong } from "../content/composer";
 import { SONGS, songById } from "../content/songs";
 import type { Difficulty } from "../game/types";
 import { playHref } from "../state/router";
-import { useSave } from "../state/store";
+import { saveStore, useSave } from "../state/store";
 
 function formatTime(seconds: number): string {
   const value = Math.max(0, Math.round(seconds));
@@ -140,7 +140,11 @@ export function PracticeScreen(): React.JSX.Element {
             </span>
           </label>
 
-          <a className="btn btn-primary btn-block" href={startHref}>
+          <a
+            className="btn btn-primary btn-block"
+            href={startHref}
+            onClick={() => saveStore.rememberSelection("practice", difficulty, songId)}
+          >
             Start practice
           </a>
         </section>

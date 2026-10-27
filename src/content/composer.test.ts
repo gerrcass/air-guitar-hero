@@ -113,6 +113,18 @@ describe("composer", () => {
     }
   });
 
+  it("puts HOPO notes in every Hard and Expert chart", () => {
+    for (const song of SONGS) {
+      const { charts } = composeSong(song);
+      for (const difficulty of ["hard", "expert"] as const) {
+        expect(
+          charts[difficulty].notes.some((note) => note.hopo),
+          `${song.title}/${difficulty} HOPO`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it("keeps Easy star phrases at a beginner-readable spacing", () => {
     for (const song of SONGS) {
       const easy = composeSong(song).charts.easy;

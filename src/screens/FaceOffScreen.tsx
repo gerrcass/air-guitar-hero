@@ -97,6 +97,8 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
     null,
     null,
   ]);
+  const [liveText, setLiveText] = useState("Face-off starting.");
+  const liveTickRef = useRef(0);
 
   const composed = useMemo(() => getComposedSong(songId), [songId]);
   const song = useMemo(() => songById(songId), [songId]);
@@ -123,6 +125,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
   const rematchRef = useRef<HTMLButtonElement>(null);
   const pauseDialogRef = useRef<HTMLDivElement>(null);
   const resultDialogRef = useRef<HTMLDivElement>(null);
+  const audioErrorRef = useRef<HTMLDivElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -138,13 +141,14 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
   }, [paused]);
   useFocusTrap(pauseDialogRef, paused);
   useFocusTrap(resultDialogRef, phase === "done");
+  useFocusTrap(audioErrorRef, Boolean(audioError) && phase === "playing");
   useEffect(() => {
-    const active = phase === "playing" && started && !paused;
+    const active = phase === "playing" && started && !paused && !audioError;
     document.documentElement.dataset.gameplayActive = active ? "1" : "0";
     return () => {
       delete document.documentElement.dataset.gameplayActive;
     };
-  }, [phase, started, paused]);
+  }, [phase, started, paused, audioError]);
 
   const makeSessions = useCallback((): [GameSession, GameSession] => {
     const options = {
@@ -262,6 +266,8 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
       pausedRef.current = false;
       setPaused(false);
     } catch {
+      pausedRef.current = false;
+      setPaused(false);
       setAudioError("Audio could not resume. Restart the face-off.");
     }
   }, []);
@@ -289,7 +295,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
   );
 
   useEffect(() => {
-    if (!started || paused) return;
+    if (!started || paused || audioError) return;
     const callbacks = {
       onFretDown: (player: InputPlayer, lane: 0 | 1 | 2 | 3 | 4): void => {
         const sessions = sessionsRef.current;
@@ -342,7 +348,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
       detachKeyboard();
       gamepads.detach();
     };
-  }, [started, paused, activateStarPower, judgeTime, pause, processEvents, resume]);
+  }, [started, paused, audioError, activateStarPower, judgeTime, pause, processEvents, resume]);
 
   const autoplaySessions = useCallback(
     (time: number): void => {
@@ -442,6 +448,14 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
       const beat = 60 / composed.arrangement.bpm;
       const remaining = audioEngine.countInRemaining();
       setCountIn(remaining > 0.03 ? Math.max(1, Math.ceil(remaining / beat)) : 0);
+      liveTickRef.current += 1;
+      if (liveTickRef.current % 30 === 0) {
+        setLiveText(
+          `Player 1 score ${p1.score}, rock ${Math.round(p1.rock * 100)} percent. Player 2 score ${p2.score}, rock ${Math.round(p2.rock * 100)} percent.${
+            eliminatedRef.current[0] ? " Player 1 is eliminated." : ""
+          }${eliminatedRef.current[1] ? " Player 2 is eliminated." : ""}`,
+        );
+      }
     }, 90);
     return () => clearInterval(timer);
   }, [started, composed.arrangement.bpm]);
@@ -665,9 +679,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
           </div>
         )}
         <p className="sr-only" aria-live="polite">
-          {hud[0] && hud[1]
-            ? `Player 1 score ${hud[0].score}, rock ${Math.round(hud[0].rock * 100)} percent. Player 2 score ${hud[1].score}, rock ${Math.round(hud[1].rock * 100)} percent.`
-            : "Face-off starting."}
+          {liveText}
         </p>
 
         {paused && (
@@ -676,6 +688,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
             role="dialog"
             aria-modal="true"
             aria-label="Face-off paused"
+            ref={pauseDialogRef}
           >
             <div className="pause-panel">
               <p className="eyebrow">Paused</p>
@@ -727,6 +740,7 @@ export function FaceOffScreen({ route }: FaceOffScreenProps): React.JSX.Element 
             role="dialog"
             aria-modal="true"
             aria-label="Face-off result"
+            ref={resultDialogRef}
           >
             <p className="eyebrow">Face-off result</p>
             <h2>

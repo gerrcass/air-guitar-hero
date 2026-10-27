@@ -62,6 +62,25 @@ test.describe("practice", () => {
     expectNoConsoleErrors(console);
   });
 
+  test("remembers the practice song and difficulty across reload", async ({ page }) => {
+    await gotoRoute(page, "#/practice");
+    const songSelect = page.locator("select").first();
+    const options = await songSelect.locator("option").allTextContents();
+    const gutter = options.findIndex((option) => option.includes("Gutter Halo"));
+    expect(gutter).toBeGreaterThanOrEqual(0);
+    await songSelect.selectOption({ index: gutter });
+    await page
+      .getByRole("group", { name: "Difficulty" })
+      .getByRole("button", { name: /Hard/ })
+      .click();
+    await page.getByRole("link", { name: "Start practice" }).click();
+    await gotoRoute(page, "#/practice");
+    await expect(page.locator("select").first()).toHaveValue("gutter-halo");
+    await expect(
+      page.getByRole("group", { name: "Difficulty" }).getByRole("button", { name: /Hard/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("a 75% practice gate starts at the selected section speed", async ({ page }) => {
     await gotoRoute(page, "#/practice");
     await setRange(page, 75);

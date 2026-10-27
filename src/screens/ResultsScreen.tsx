@@ -67,15 +67,20 @@ export function ResultsScreen(): React.JSX.Element {
         : run.mode === "faceoff"
           ? "#/faceoff"
           : "#/quickplay";
+  const abandoned = run.abandoned === true;
   const savedLabel =
     run.mode === "career"
       ? run.passed
         ? "Career progress and best score saved."
-        : "Failed career run — no career progress saved."
+        : abandoned
+          ? "Run ended early — no career progress saved."
+          : "Failed career run — no career progress saved."
       : run.mode === "quickplay"
         ? run.passed
           ? "Best score saved for this song and difficulty."
-          : "Failed run — no best score saved."
+          : abandoned
+            ? "Run ended early — no best score saved."
+            : "Failed run — no best score saved."
         : "Practice rep — saves untouched.";
 
   return (
@@ -90,7 +95,15 @@ export function ResultsScreen(): React.JSX.Element {
           {modeLabel(run.mode)} · {difficultyLabel(run.difficulty)}
           {run.sectionLabel ? ` · ${run.sectionLabel}` : ""}
         </p>
-        <h1>{run.passed ? "The crowd heard you." : "The room went quiet."}</h1>
+        <h1>
+          {run.passed
+            ? "The crowd heard you."
+            : abandoned
+              ? run.mode === "practice"
+                ? "Practice rep ended."
+                : "Run ended early."
+              : "The room went quiet."}
+        </h1>
         <p className="results-song">
           <strong>{song.title}</strong> · {song.artist}
         </p>
@@ -169,7 +182,9 @@ export function ResultsScreen(): React.JSX.Element {
       <p className="results-footnote">
         {run.passed
           ? "Stars come from the chart's par score: pass for one, then 35%, 55%, 75%, and 90% of par for two through five."
-          : "Failure is a moment, not lost progress. Retry, slow it down in Practice, or pick a lower difficulty."}
+          : abandoned
+            ? "You left the stage before the song ended. No career progress or best score was written."
+            : "Failure is a moment, not lost progress. Retry, slow it down in Practice, or pick a lower difficulty."}
       </p>
     </div>
   );
