@@ -16,12 +16,14 @@ garden of gems, particles, score pops, and star-power events.
 | Worst frame gap | 33.4 ms (one run: 66.6 ms) |
 | Long tasks over 100 ms | 0 |
 | Canvas device pixel ratio | capped at 2 in code; 1 in this capture |
-| Bundle | 388 kB JS / 116 kB gzip; 55 kB CSS / 11 kB gzip |
+| Bundle | 396 kB JS / 119 kB gzip; 56 kB CSS / 11.5 kB gzip |
 
-The assertion in the browser suite is median ≥ 55 fps with no long tasks over 100 ms. The
-renderer allocates one Canvas, pre-allocates particle and score-pop pools, caps DPR at 2, and
-cancels its rAF loop when gameplay unmounts. React HUD state is sampled at roughly 11 Hz; the
-Canvas reads snapshots directly every frame.
+The local browser assertion is median ≥ 55 fps with no long tasks over 100 ms. Shared GitHub
+Actions runners sometimes cap Chromium at 30 Hz, so CI measures an idle rAF baseline first and
+asserts that gameplay keeps at least 75% of the available cadence; the absolute 55 fps gate stays
+enforced on local runs. The renderer allocates one Canvas, pre-allocates particle and score-pop
+pools, caps DPR at 2, and cancels its rAF loop when gameplay unmounts. React HUD state is sampled
+at roughly 11 Hz; the Canvas reads snapshots directly every frame.
 
 ## Layout checks
 

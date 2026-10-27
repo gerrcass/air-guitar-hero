@@ -33,8 +33,8 @@ synthesized soundtrack and no server.
   higher score wins.
 - **Accessibility and input:** keyboard and standard-mapping gamepad support, hot-plug,
   calibration, colourblind palette, lane symbols, reduced motion, static highway, camera-shake
-  toggle, separate music/SFX/crowd buses, full keyboard navigation, live HUD status, and a
-  visible audio-error recovery screen.
+  toggle, HOPO relief, separate music/SFX/crowd buses, full keyboard navigation, live HUD
+  status, and a visible audio-error recovery screen.
 
 ### Modes at a glance
 
@@ -70,7 +70,8 @@ synthesized soundtrack and no server.
 
 The first connected pad drives Player 1; a second pad drives Player 2 in Face-off. Menus are
 fully keyboard operable; gameplay needs a keyboard or gamepad. Mobile menus are usable and the
-shell says so.
+shell says so. HOPO notes carry a white ring: press the matching fret without strumming. HOPO
+relief can be turned off in Settings for a strict strum-every-note run.
 
 ## Run it locally
 
@@ -110,6 +111,7 @@ action. No account, backend, analytics, or network calls are involved at runtime
 - [Review log](docs/engineering/REVIEW_LOG.md)
 - [Performance notes](docs/engineering/PERFORMANCE.md)
 - [Release checklist](docs/engineering/RELEASE.md)
+- [Retrospective](docs/engineering/RETRO.md)
 
 ## Assets and licensing
 

@@ -95,4 +95,80 @@ regressions or new gaps, and to return a merge verdict.
 
 ## Round 2
 
-Pending.
+Two new independent reviewers, C (gameplay/content/engine/input) and D (UX/accessibility/release),
+received distinct primary lenses plus the same shared must-check list and a explicit
+verify-or-falsify list from round 1. Both returned **DO NOT MERGE**.
+
+### Reviewer C — gameplay, engine, content, input
+
+Round-1 verification: HOPO strum/visual cue FIXED; Easy star spacing FIXED; motif FIXED; practice
+edge handling FIXED; career lock FIXED; face-off unit coverage FIXED; HOPO relief FIXED. Calibration
+remained wrong at review time (test click trained the inverse sign) and pause-sustain release
+remained a known minor.
+
+New blockers/majors:
+- `earliestCandidate` chose the nearest note rather than the earliest eligible note, so overlapping
+  windows could score the later gem and miss the earlier one.
+- Calibration test click direction was inverted relative to the judgement clock.
+- Practice-speed scheduling stretched note start times but not note durations.
+- The HOPO tutorial could never pass with HOPO relief disabled.
+- The flat 2.6× par made five stars too cheap; par did not follow the real multiplier curve.
+- Midnight Fossil had no HOPOs on Hard or Expert.
+- Minor: focus-trap refs were not attached on face-off/tutorial result dialogs; snapshots exposed a
+  mutable note-state array; multiple sustain ticks in one update displayed as one.
+
+### Reviewer D — UX, accessibility, release risk
+
+Round-1 verification: gamepad paths FIXED; equipped guitar FIXED; evidence/docs FIXED; failed-run
+copy/progress/tutorial sustain FIXED; unknown routes FIXED. Keyboard pause activation and skip link
+were FIXED, but dialog focus traps were still broken because refs were never attached. The CI
+performance job was red: the runner measured 30 fps, so the absolute 55 fps assertion could never
+pass on that hardware.
+
+New majors/minors:
+- Face-off/tutorial dialogs were not actually trapped; audio-resume failure left focus inside the
+  pause dialog while the recovery panel was outside.
+- Live regions were driven by the 90 ms HUD state and could announce ~11 times per second.
+- Ending a deliberate run rendered the failure headline and “Failed run” copy.
+- Mobile play gate lost the keyboard/gamepad notice; Extras overflowed by 13 px at 390 px.
+- Practice did not remember its last song/difficulty.
+- The results screenshot clipped its lower rows and actions.
+- Tutorial HOPO gating and the CI performance strategy needed fixes.
+
+### Round-2 comparison and fixes
+
+Agreement: both flagged the tutorial HOPO gate, the CI/performance gate, and the modal focus-trap
+refs. C uniquely found the nearest-note judgement bug, practice audio duration, star curve and
+Midnight HOPO gap. D uniquely found live-region flooding, audio-recovery focus, abandoned-run copy,
+mobile overflow/notice, practice persistence, and screenshot clipping. There were no contradictory
+claims; the calibration disagreement was resolved by defining the test-sign convention and pinning
+it with `calibrationTestDelays`.
+
+Fixes landed after round 2:
+- Earliest-eligible note selection with an overlapping-window regression test.
+- HOPO strum grace + ring cue; HOPO presence in all Hard/Expert charts; HOPO tutorial enabled
+  independently of the relief setting.
+- Calibration now shifts the judged clock and input together; test click/pulse delays are pinned
+  and model the sign of the judgement correction.
+- Audio durations stretch with practice speed; a unit test pins the time factor.
+- Par walks the real 1×–4× multiplier curve and sustain ticks.
+- Snapshots are immutable; per-update sustain tick state is accurate.
+- Pause/result/outcome/audio-error focus traps attached; audio recovery clears the pause state and
+  captures focus.
+- Live regions throttled to roughly 2.7 s summaries.
+- Deliberate quits are labelled “Run ended early” with no best/career write.
+- Mobile gate notice added; Extras narrowed; practice remembers song/difficulty; results evidence
+  is full-page.
+- Performance CI measures an idle baseline and asserts gameplay retains at least 75% of the
+  available cadence; local runs still enforce absolute ≥55 fps. The CI browser job is green.
+
+Accepted residual minors: pausing releases held frets, so a sustain tail stops across a pause
+(earned score/streak remain); a practice pre-roll can place an inherited note at the hit line as
+the count-in ends. Both are visible only at deliberately awkward edges and do not change saved
+progress.
+
+### Final verdict
+
+After the fixes, `npm run check` (98 unit tests + content + screenshot manifest), the 32-test
+Playwright suite, axe scans, and the CI browser job pass. The remaining findings are accepted
+minors, not merge blockers. **MERGE.**
