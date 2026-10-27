@@ -23,21 +23,23 @@ Live target: <https://gerrcass.github.io/air-guitar-hero/>
 
 | Check | Evidence | Result |
 | --- | --- | --- |
-| Pages workflow on `main` | GitHub Actions run | Pending merge |
-| Live URL returns the app | `curl -I` / browser | Pending merge |
-| Built game loads | live Playwright smoke | Pending merge |
-| Live screenshot captured | `docs/screenshots/live-pages.png` (attach to PR) | Pending merge |
+| Pages workflow on `main` | [run 40441325728](https://github.com/gerrcass/air-guitar-hero/actions/runs/40441325728) | Success |
+| Live URL returns the app | `https://gerrcass.github.io/air-guitar-hero/` returned HTTP 200 | Verified |
+| Built game loads | live Playwright smoke: title `Air Guitar Hero`, Quickplay/Hard run started, score advanced to 950, no console/page errors | Verified |
+| Live screenshot captured | live menu + live gameplay attached to [PR #12](https://github.com/gerrcass/air-guitar-hero/pull/12) | Verified |
+| PR CI on merged head | [run 40439315640](https://github.com/gerrcass/air-guitar-hero/actions/runs/40439315640) | Success |
+| Squash merge | `ffd1376c139e380f8997e913619e6236e6779312` | Merged |
 
 ## Repository hygiene
 
-- [ ] All ten tickets closed with merge/evidence comments.
-- [ ] Spec issue #1 closed with delivery summary.
-- [ ] No open pull requests.
-- [ ] Implementation worktrees removed.
-- [ ] Temporary ticket branches deleted.
-- [ ] Working tree clean; `dist/`, `node_modules/`, Playwright output, and scratch captures ignored.
-- [ ] Default branch is the final deployed state.
-- [ ] README live link and gameplay screenshot committed.
+- [x] All ten tickets closed with merge/evidence comments.
+- [x] Spec issue #1 closed with delivery summary.
+- [x] No open pull requests.
+- [x] Implementation worktrees removed.
+- [x] Temporary ticket branches deleted.
+- [x] Working tree clean; `dist/`, `node_modules/`, Playwright output, and scratch captures ignored.
+- [x] Default branch is the final deployed state.
+- [x] README live link and gameplay screenshot committed.
 
 ## Asset and licence statement
 
