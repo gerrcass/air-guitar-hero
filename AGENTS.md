@@ -10,13 +10,16 @@ to GitHub Pages.
 - `GLOSSARY.md` — the game's canonical vocabulary. Use it in code, tests, and commits.
 - `docs/adr/` — decisions that are expensive to reverse.
 - `docs/design/DESIGN-GRILL.md` — settled scope and non-goals.
+- `docs/engineering/REVIEW_LOG.md` — the mandatory dual-review rounds and their settled findings.
+- `docs/engineering/PERFORMANCE.md` — frame-budget evidence and the portable CI policy.
+- `docs/engineering/RELEASE.md` — release checklist; run it before opening a merge PR.
 
 ## Commands
 
 ```sh
 npm ci                # install
 npm run dev           # local dev server
-npm run check         # typecheck + lint + unit tests + content validation
+npm run check         # typecheck + lint + unit tests + content + screenshot manifest
 npm run test:e2e      # Playwright journeys (starts its own server)
 npm run build         # production build
 npm run screenshots   # capture README screenshots from the production build

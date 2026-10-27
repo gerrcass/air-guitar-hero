@@ -1,0 +1,62 @@
+:root {
+  color-scheme: dark;
+
+  --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
+  --font-body: "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+
+  --bg-0: #04050a;
+  --bg-1: #080a11;
+  --bg-2: #0d111c;
+  --panel: #101522;
+  --panel-2: #151b2c;
+  --panel-3: #1b2237;
+
+  --ink: #f8f4ff;
+  --ink-soft: #d8d3e6;
+  --muted: #a19fb6;
+  --quiet: #9b98ae;
+
+  --line: rgba(255, 255, 255, 0.11);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --line-hot: rgba(255, 45, 149, 0.45);
+
+  --magenta: #ff2d95;
+  --magenta-soft: #ff6ab5;
+  --cyan: #4de1ff;
+  --cyan-soft: #9df0ff;
+  --amber: #ffc247;
+  --green: #3ddc84;
+  --red: #ff4d5e;
+  --violet: #a86bff;
+
+  --focus: #b7f6ff;
+  --focus-shadow: 0 0 0 3px var(--bg-0), 0 0 0 6px var(--focus);
+
+  --shadow-panel: 0 24px 70px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 30px 80px rgba(0, 0, 0, 0.55);
+  --glow-magenta: 0 0 42px rgba(255, 45, 149, 0.32);
+  --glow-cyan: 0 0 42px rgba(77, 225, 255, 0.24);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  --content: 1280px;
+  --header-height: 76px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.7, 0, 0.2, 1);
+}
